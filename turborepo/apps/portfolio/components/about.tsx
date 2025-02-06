@@ -1,6 +1,6 @@
 export function About() {
   return (
-    <section className="container py-24" id="about">
+    <section className="py-24" id="about">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <div className="flex flex-col gap-4">
           <h2 className="text-3xl font-bold">About Me</h2>

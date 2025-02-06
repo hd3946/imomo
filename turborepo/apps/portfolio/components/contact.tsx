@@ -2,7 +2,7 @@ import { Button } from "@repo/ui/components/ui/button";
 
 export function Contact() {
   return (
-    <section className="container py-24" id="contact">
+    <section className="py-24" id="contact">
       <h2 className="text-3xl font-bold mb-12 text-center">Contact</h2>
 
       <div className="max-w-2xl mx-auto">

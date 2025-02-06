@@ -1,18 +1,26 @@
-import { Button } from "@repo/ui/components/ui/button";
+const HoverTextEffect = ({ text }: { text: string }) => {
+  return (
+    <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-white">
+      {text.split(" ").map((char, index) => (
+        <span key={index} className="inline-block text-bounce-hover">
+          {char}
+        </span>
+      ))}
+    </h1>
+  );
+};
 
 export function Hero() {
   return (
-    <section className="container flex min-h-screen items-center justify-center">
-      <div className="flex flex-col items-center text-center gap-4">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-          안녕하세요,
-          <br />
-          프론트엔드 개발자입니다
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          창의적인 웹 경험을 만드는 것을 좋아합니다
+    <section className="relative flex min-h-screen items-center justify-center bg-black">
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-500 to-purple-500 blur-3xl opacity-20"></div>
+      <div className="relative z-10 flex flex-col items-center text-center gap-4">
+        <HoverTextEffect text="Hey there!" />
+        <HoverTextEffect text="I'm a Frontend Developer crafting unique web experiences." />
+
+        <p className="text-lg text-gray-300">
+          I love building interactive and visually appealing UIs.
         </p>
-        <Button size="lg">프로젝트 보기</Button>
       </div>
     </section>
   );

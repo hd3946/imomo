@@ -61,9 +61,27 @@
 
 @layer base {
   * {
-    @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .text-bounce-hover {
+    display: inline-block;
+    transition: transform 0.2s ease-in-out;
+  }
+
+  .text-bounce-hover:hover {
+    animation: bounce 0.5s infinite alternate;
+  }
+
+  @keyframes bounce {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-5px);
+    }
   }
 }

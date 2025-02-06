@@ -7,7 +7,7 @@ import { Skills } from "@/components/skills";
 
 export default function Page() {
   return (
-    <main className="min-h-screen">
+    <main className="grid min-h-screen w-full">
       <Navigation />
       <Hero />
       <About />
