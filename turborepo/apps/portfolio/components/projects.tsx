@@ -12,7 +12,7 @@ const projects = [
 
 export function Projects() {
   return (
-    <section className="py-24" id="projects">
+    <section className="p-24" id="projects">
       <h2 className="text-3xl font-bold mb-12 text-center">프로젝트</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects.map((project, i) => (

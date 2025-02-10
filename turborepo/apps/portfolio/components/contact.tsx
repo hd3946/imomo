@@ -1,19 +1,15 @@
-import { Button } from "@repo/ui/components/ui/button";
+import { EmailIcon, GithubIcon } from '@repo/ui/lib/icons'
+import Link from 'next/link'
 
 export function Contact() {
   return (
-    <section className="py-24" id="contact">
+    <section className="p-24" id="contact">
       <h2 className="text-3xl font-bold mb-12 text-center">Contact</h2>
 
       <div className="max-w-2xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           <div className="flex flex-col items-center gap-2 p-6 border rounded-lg">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24" 
-            >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -22,40 +18,43 @@ export function Contact() {
               />
             </svg>
             <h3 className="font-semibold">Email</h3>
-            <p className="text-sm text-muted-foreground">example@email.com</p>
-          </div>
-
-          <div className="flex flex-col items-center gap-2 p-6 border rounded-lg">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-              />
-            </svg>
-            <h3 className="font-semibold">Phone</h3>
-            <p className="text-sm text-muted-foreground">010-1234-5678</p>
+            <p className="text-sm text-muted-foreground">hd3946@naver.com</p>
           </div>
         </div>
 
-        <div className="flex justify-center gap-4">
-          <Button variant="outline" size="lg">
-            GitHub
-          </Button>
-          <Button variant="outline" size="lg">
-            LinkedIn
-          </Button>
-          <Button variant="outline" size="lg">
-            Resume
-          </Button>
+        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+            <h1 className="text-2xl font-bold text-gray-800 mb-6">Contact</h1>
+            <div className="space-y-6">
+              <div className="flex items-center space-x-4">
+                <EmailIcon className="h-6 w-6 text-gray-500" />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-lg text-gray-900">hd3946@naver.com</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                <GithubIcon className="h-6 w-6 text-gray-500" />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">GitHub</label>
+                  <Link href="https://github.com" className="mt-1 text-lg text-blue-500 hover:text-blue-700">
+                    github.com/yourusername
+                  </Link>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                {/* <FaLinkedin className="h-6 w-6 text-gray-500" /> */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">LinkedIn</label>
+                  <Link href="https://linkedin.com" className="mt-1 text-lg text-blue-500 hover:text-blue-700">
+                    linkedin.com/in/yourusername
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
-  );
+  )
 }
