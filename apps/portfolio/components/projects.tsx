@@ -105,15 +105,15 @@ export function Projects() {
 
       <div className="relative max-w-[1400px] mx-auto">
         <div className="overflow-x-auto hide-scrollbar relative w-full" style={{ scrollSnapType: 'x mandatory' }}>
-          <div className="flex gap-6">
+          <div className="flex gap-6 p-4">
             {projects.map((project, index) => (
               <div
                 key={index}
-                className="min-w-[300px] max-w-[500px] flex-shrink-0"
+                className="h-[400px] w-[350px] flex-shrink-0"
                 style={{ scrollSnapAlign: 'start' }}
               >
-                <Card className="group h-full bg-card/50 backdrop-blur-sm hover:backdrop-blur-lg border-border/40 hover:border-primary/20 transition-all duration-500 ease-in-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10">
-                  <CardContent className="p-6">
+                <Card className="group shadow-md shadow-cyan-100 h-full bg-card/50 backdrop-blur-sm hover:backdrop-blur-lg border-none transition-all duration-500 ease-in-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10">
+                  <CardContent className="pt-6">
                     <div className="aspect-video relative overflow-hidden rounded-lg mb-6">
                       <Image
                         src={project.image}
