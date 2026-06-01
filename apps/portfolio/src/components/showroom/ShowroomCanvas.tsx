@@ -301,10 +301,34 @@ interface TerritoryNote {
   createdAt: string
 }
 
+interface TerritoryClaim {
+  gx: number
+  gy: number
+  color: string
+  createdAt: string
+}
+
 const TERRITORY_NOTES_STORAGE_KEY = 'imomo-portfolio-territory-notes'
+const TERRITORY_CLAIMS_STORAGE_KEY = 'imomo-portfolio-territory-claims'
+const TERRITORY_NOTES_API_PATH = '/api/territory-notes'
 
 function isUserTerritory(occupant: string): boolean {
   return occupant.includes('(나)')
+}
+
+function safeParseStoredList<T>(value: string | null): T[] {
+  if (!value) return []
+
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function persistLocalTerritoryNotes(notes: TerritoryNote[]) {
+  window.localStorage.setItem(TERRITORY_NOTES_STORAGE_KEY, JSON.stringify(notes.slice(0, 20)))
 }
 
 export function ShowroomCanvas() {
@@ -338,18 +362,84 @@ export function ShowroomCanvas() {
     return () => clearInterval(id)
   }, [])
 
-  useEffect(() => {
-    const rawNotes = window.localStorage.getItem(TERRITORY_NOTES_STORAGE_KEY)
-    if (!rawNotes) return
+  const applyTerritoryNotesToGlobe = (notes: TerritoryNote[]) => {
+    setPixels((prev) => {
+      const next = { ...prev }
+      notes.forEach((note) => {
+        next[`${note.gx}_${note.gy}`] = {
+          color: note.color,
+          occupant: `${note.name} (방명록)`,
+        }
+      })
+      return next
+    })
+  }
 
-    try {
-      const parsed = JSON.parse(rawNotes)
-      if (Array.isArray(parsed)) {
-        setTerritoryNotes(parsed.slice(0, 20))
-      }
-    } catch {
-      window.localStorage.removeItem(TERRITORY_NOTES_STORAGE_KEY)
+  useEffect(() => {
+    const storedNotes = safeParseStoredList<TerritoryNote>(
+      window.localStorage.getItem(TERRITORY_NOTES_STORAGE_KEY)
+    ).slice(0, 20)
+    const storedClaims = safeParseStoredList<TerritoryClaim>(
+      window.localStorage.getItem(TERRITORY_CLAIMS_STORAGE_KEY)
+    ).slice(0, 20)
+
+    if (storedNotes.length > 0) {
+      setTerritoryNotes(storedNotes)
+      applyTerritoryNotesToGlobe(storedNotes)
     }
+
+    if (storedClaims.length > 0) {
+      setPixels((prev) => {
+        const next = { ...prev }
+        storedClaims.forEach((claim) => {
+          next[`${claim.gx}_${claim.gy}`] = {
+            color: claim.color,
+            occupant: '이웃 방문자 (나) 👤',
+          }
+        })
+        return next
+      })
+
+      const latestClaim = storedClaims[0]
+      if (latestClaim) {
+        setLastUserClaim(latestClaim)
+        setClaimDraft(latestClaim)
+        setTerritoryNoteStatus(`${latestClaim.gx},${latestClaim.gy} 영토를 불러왔습니다.`)
+      }
+    }
+
+    const controller = new AbortController()
+
+    fetch(TERRITORY_NOTES_API_PATH, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Remote notes unavailable: ${response.status}`)
+        }
+        return response.json()
+      })
+      .then((data) => {
+        const remoteNotes = Array.isArray(data.notes)
+          ? (data.notes as TerritoryNote[]).slice(0, 20)
+          : []
+
+        setTerritoryNotes(remoteNotes)
+        applyTerritoryNotesToGlobe(remoteNotes)
+        persistLocalTerritoryNotes(remoteNotes)
+
+        if (remoteNotes.length > 0) {
+          setTerritoryNoteStatus('공유 방명록을 불러왔습니다.')
+        }
+      })
+      .catch(() => {
+        if (storedNotes.length > 0) {
+          setTerritoryNoteStatus('공유 저장소 대신 이 브라우저의 임시 기록을 표시 중입니다.')
+        }
+      })
+
+    return () => controller.abort()
   }, [])
 
   // ─── 가상 글로벌 봇(Bot) 실시간 땅따먹기 타격 시뮬레이터 ────────────────────
@@ -397,13 +487,20 @@ export function ShowroomCanvas() {
       ...prev,
       [key]: { color, occupant: '이웃 방문자 (나) 👤' },
     }))
+    const nextClaim: TerritoryClaim = { gx, gy, color, createdAt: new Date().toISOString() }
+    const storedClaims = safeParseStoredList<TerritoryClaim>(
+      window.localStorage.getItem(TERRITORY_CLAIMS_STORAGE_KEY)
+    )
+    const withoutDuplicate = storedClaims.filter((claim) => claim.gx !== gx || claim.gy !== gy)
+    const nextClaims = [nextClaim, ...withoutDuplicate].slice(0, 20)
+    window.localStorage.setItem(TERRITORY_CLAIMS_STORAGE_KEY, JSON.stringify(nextClaims))
     setLastUserClaim({ gx, gy, color })
     setClaimDraft({ gx, gy, color })
     setLastOccupant(`방문자(나)님이 ${gx},${gy} 영토 점령!`)
-    setTerritoryNoteStatus('점령 완료. 이 영토에 방명록을 남길 수 있습니다.')
+    setTerritoryNoteStatus('점령 완료. 메시지를 쓰고 남기기를 누르세요.')
   }
 
-  const handleTerritoryNoteSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleTerritoryNoteSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!claimDraft) {
       setTerritoryNoteStatus('먼저 지구 표면을 클릭해서 영토를 점령해 주세요.')
@@ -425,12 +522,42 @@ export function ShowroomCanvas() {
       message: trimmedMessage,
       createdAt: new Date().toISOString(),
     }
-    const nextNotes = [nextNote, ...territoryNotes].slice(0, 20)
 
-    setTerritoryNotes(nextNotes)
-    window.localStorage.setItem(TERRITORY_NOTES_STORAGE_KEY, JSON.stringify(nextNotes))
-    setTerritoryNoteMessage('')
-    setTerritoryNoteStatus('점령 방명록에 남겼습니다.')
+    setTerritoryNoteStatus('공유 방명록에 저장 중...')
+
+    try {
+      const response = await fetch(TERRITORY_NOTES_API_PATH, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(nextNote),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Remote save failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      const nextNotes = Array.isArray(data.notes)
+        ? (data.notes as TerritoryNote[]).slice(0, 20)
+        : [nextNote, ...territoryNotes].slice(0, 20)
+
+      setTerritoryNotes(nextNotes)
+      applyTerritoryNotesToGlobe(nextNotes)
+      persistLocalTerritoryNotes(nextNotes)
+      setTerritoryNoteStatus('공유 방명록에 남겼습니다.')
+    } catch {
+      const nextNotes = [nextNote, ...territoryNotes].slice(0, 20)
+
+      setTerritoryNotes(nextNotes)
+      applyTerritoryNotesToGlobe(nextNotes)
+      persistLocalTerritoryNotes(nextNotes)
+      setTerritoryNoteStatus('공유 저장소 연결 실패. 이 브라우저에 임시 저장했습니다.')
+    } finally {
+      setTerritoryNoteMessage('')
+      setLastOccupant(`${nextNote.name}님이 ${nextNote.gx},${nextNote.gy}에 방명록을 남김!`)
+    }
   }
 
   const myTerritoryCount = useMemo(
@@ -603,7 +730,7 @@ export function ShowroomCanvas() {
               type="submit"
               className="shrink-0 rounded-lg bg-cyan-300 px-3 py-2 text-[11px] font-semibold text-slate-950 transition-colors hover:bg-cyan-200"
             >
-              남기기
+              {claimDraft ? '남기기' : '점령 먼저'}
             </button>
           </div>
         </form>

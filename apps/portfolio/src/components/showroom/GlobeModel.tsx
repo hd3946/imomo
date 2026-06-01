@@ -282,6 +282,7 @@ export function GlobeModel({
   const [hoveredPin, setHoveredPin] = useState<string | null>(null)
   const [hoveredPixel, setHoveredPixel] = useState<{ gx: number; gy: number; pos: THREE.Vector3 } | null>(null)
   const rotationSpeedRef = useRef(0.002)
+  const globePointerDownRef = useRef<{ x: number; y: number } | null>(null)
 
   // 파티클 폭발 이펙트 목록
   const [explosions, setExplosions] = useState<{ id: number; position: THREE.Vector3; color: string }[]>([])
@@ -328,7 +329,7 @@ export function GlobeModel({
 
   const claimedTerritories = useMemo<ClaimedTerritory[]>(() => {
     const userClaims = Object.entries(pixels)
-      .filter(([, val]) => isUserTerritory(val.occupant))
+      .filter(([key, val]) => isUserTerritory(val.occupant) || claimNotes[key])
       .slice(-8)
 
     return userClaims.map(([key, val], index) => {
@@ -351,7 +352,7 @@ export function GlobeModel({
         isLatest: index === userClaims.length - 1,
       }
     })
-  }, [pixels])
+  }, [pixels, claimNotes])
 
   // pixels 데이터 변경 감지 시 캔버스 다시 그리고 신규 픽셀 지점에 불꽃놀이 격발
   useEffect(() => {
@@ -426,11 +427,33 @@ export function GlobeModel({
     }
   })
 
+  const handleGlobePointerDown = (e: any) => {
+    globePointerDownRef.current = {
+      x: e.nativeEvent?.clientX ?? 0,
+      y: e.nativeEvent?.clientY ?? 0,
+    }
+  }
+
+  const didDragBeforeGlobeClick = (e: any) => {
+    if (typeof e.delta === 'number') {
+      return e.delta > 8
+    }
+
+    const pointerDown = globePointerDownRef.current
+    if (!pointerDown) return false
+
+    const dx = (e.nativeEvent?.clientX ?? pointerDown.x) - pointerDown.x
+    const dy = (e.nativeEvent?.clientY ?? pointerDown.y) - pointerDown.y
+    return Math.hypot(dx, dy) > 8
+  }
+
   // 지구 표면 마우스 단일 클릭 시 픽셀 점령 등록
   const handleGlobeClick = (e: any) => {
     e.stopPropagation()
-    // 드래그(조작) 중이거나 교점이 없을 때는 점령 무시
-    if (isInteracting || !e.point) return
+    if (didDragBeforeGlobeClick(e) || !e.point) {
+      globePointerDownRef.current = null
+      return
+    }
 
     // 월드 클릭 좌표를 지구본 로컬 좌표로 변환
     const localPoint = e.point.clone()
@@ -455,6 +478,8 @@ export function GlobeModel({
     if (gx >= 0 && gx < 360 && gy >= 0 && gy < 180) {
       onRegisterPixel(gx, gy, userColor)
     }
+
+    globePointerDownRef.current = null
   }
 
   const showPinPointer = (name: string) => {
@@ -509,6 +534,7 @@ export function GlobeModel({
       <group ref={globeGroupRef}>
         {/* ① 지구본 코어 구체 */}
         <mesh
+          onPointerDown={handleGlobePointerDown}
           onClick={handleGlobeClick}
           onPointerOver={(e) => {
             e.stopPropagation()
