@@ -10,6 +10,7 @@ interface GlobeModelProps {
   activeItem: string | null
   isInteracting: boolean
   pixels: Record<string, { color: string; occupant: string }>
+  claimNotes: Record<string, { name: string; message: string }>
   userColor: string
   onRegisterPixel: (gx: number, gy: number, color: string) => void
   onCameraZoomTarget?: (target: THREE.Vector3) => void
@@ -21,6 +22,17 @@ interface CountryPin {
   lat: number
   lon: number
   color: string
+}
+
+interface ClaimedTerritory {
+  key: string
+  gx: number
+  gy: number
+  color: string
+  occupant: string
+  position: THREE.Vector3
+  direction: THREE.Vector3
+  isLatest: boolean
 }
 
 const countries: CountryPin[] = [
@@ -39,6 +51,31 @@ function convertLatLngToVector3(lat: number, lon: number, radius: number): THREE
   const y = radius * Math.cos(phi)
   const z = radius * Math.sin(phi) * Math.cos(theta)
   return new THREE.Vector3(x, y, z)
+}
+
+function isUserTerritory(occupant: string): boolean {
+  return occupant.includes('(나)')
+}
+
+function drawTerritoryPatch(
+  ctx: CanvasRenderingContext2D,
+  gx: number,
+  gy: number,
+  color: string,
+  isMine: boolean
+) {
+  const size = isMine ? 5 : 3
+  const half = Math.floor(size / 2)
+  const x = Math.max(0, Math.min(ctx.canvas.width - size, gx - half))
+  const y = Math.max(0, Math.min(ctx.canvas.height - size, gy - half))
+
+  if (isMine) {
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'
+    ctx.fillRect(x - 1, y - 1, size + 2, size + 2)
+  }
+
+  ctx.fillStyle = color
+  ctx.fillRect(x, y, size, size)
 }
 
 // ─── Ping 레이더 웨이브 링 ────────────────────────────────────────────────────
@@ -235,6 +272,7 @@ export function GlobeModel({
   activeItem,
   isInteracting,
   pixels,
+  claimNotes,
   userColor,
   onRegisterPixel,
   onCameraZoomTarget,
@@ -288,6 +326,33 @@ export function GlobeModel({
 
   const prevPixelsRef = useRef<Record<string, { color: string; occupant: string }>>({})
 
+  const claimedTerritories = useMemo<ClaimedTerritory[]>(() => {
+    const userClaims = Object.entries(pixels)
+      .filter(([, val]) => isUserTerritory(val.occupant))
+      .slice(-8)
+
+    return userClaims.map(([key, val], index) => {
+      const [gxStr, gyStr] = key.split('_')
+      const gx = parseInt(gxStr || '0', 10)
+      const gy = parseInt(gyStr || '0', 10)
+      const lon = gx - 180 + 0.5
+      const lat = 90 - gy - 0.5
+      const position = convertLatLngToVector3(lat, lon, globeRadius + 0.07)
+      const direction = position.clone().normalize()
+
+      return {
+        key,
+        gx,
+        gy,
+        color: val.color,
+        occupant: val.occupant,
+        position,
+        direction,
+        isLatest: index === userClaims.length - 1,
+      }
+    })
+  }, [pixels])
+
   // pixels 데이터 변경 감지 시 캔버스 다시 그리고 신규 픽셀 지점에 불꽃놀이 격발
   useEffect(() => {
     const ctx = canvas.getContext('2d')
@@ -300,8 +365,7 @@ export function GlobeModel({
       const gx = parseInt(gxStr || '0', 10)
       const gy = parseInt(gyStr || '0', 10)
 
-      ctx.fillStyle = val.color
-      ctx.fillRect(gx, gy, 1, 1) // 1x1 도트 픽셀 채우기
+      drawTerritoryPatch(ctx, gx, gy, val.color, isUserTerritory(val.occupant))
 
       // 직전 프레임에 없던 신규 픽셀 점령 감지 시 폭발 이펙트 뿜기
       if (!prevPixelsRef.current[key]) {
@@ -393,10 +457,19 @@ export function GlobeModel({
     }
   }
 
+  const showPinPointer = (name: string) => {
+    setHoveredPin(name)
+    document.body.style.cursor = 'pointer'
+  }
+
+  const clearPinPointer = () => {
+    setHoveredPin(null)
+    document.body.style.cursor = 'default'
+  }
+
   // 핀 클릭
-  const handlePinClick = (name: string, e: THREE.Event) => {
-    (e as any).stopPropagation?.()
-    const country = countries.find((c) => c.name === name)
+  const handlePinClick = (name: string, e?: THREE.Event | MouseEvent) => {
+    ;(e as any)?.stopPropagation?.()
     if (activeItem === name) {
       onSelectItem(null)
     } else {
@@ -405,8 +478,8 @@ export function GlobeModel({
   }
 
   // 핀 더블클릭 줌인
-  const handlePinDoubleClick = (name: string, e: THREE.Event) => {
-    (e as any).stopPropagation?.()
+  const handlePinDoubleClick = (name: string, e?: THREE.Event | MouseEvent) => {
+    ;(e as any)?.stopPropagation?.()
     const country = countries.find((c) => c.name === name)
     if (country && onCameraZoomTarget) {
       const localPos = convertLatLngToVector3(country.lat, country.lon, globeRadius)
@@ -566,6 +639,50 @@ export function GlobeModel({
           </group>
         )}
 
+        {/* ─── 내가 점령한 영토 표식 ─── */}
+        {claimedTerritories.map((territory) => {
+          const note = claimNotes[territory.key]
+
+          return (
+            <group key={`claim-${territory.key}`} position={territory.position}>
+              <mesh>
+                <sphereGeometry args={[territory.isLatest ? 0.065 : 0.045, 16, 16]} />
+                <meshBasicMaterial
+                  color={territory.color}
+                  transparent
+                  opacity={territory.isLatest ? 1 : 0.82}
+                  blending={THREE.AdditiveBlending}
+                  depthWrite={false}
+                />
+              </mesh>
+              <mesh quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), territory.direction)}>
+                <ringGeometry args={[0.08, territory.isLatest ? 0.13 : 0.11, 32]} />
+                <meshBasicMaterial
+                  color={territory.isLatest ? '#ffffff' : territory.color}
+                  transparent
+                  opacity={territory.isLatest ? 0.86 : 0.48}
+                  side={THREE.DoubleSide}
+                  blending={THREE.AdditiveBlending}
+                  depthWrite={false}
+                />
+              </mesh>
+              {territory.isLatest && (
+                <Html
+                  position={territory.direction.clone().multiplyScalar(0.22)}
+                  center
+                  distanceFactor={5.8}
+                >
+                  <div className="max-w-[240px] px-2.5 py-1 rounded-full bg-cyan-400/95 text-slate-950 border border-white/70 shadow-[0_0_18px_rgba(34,211,238,0.65)] text-[10px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis select-none pointer-events-none">
+                    {note
+                      ? `${note.name}: ${note.message}`
+                      : `내 점령 영토 ${territory.gx},${territory.gy}`}
+                  </div>
+                </Html>
+              )}
+            </group>
+          )
+        })}
+
         {/* ⑤ 네온 아크 커넥션 */}
         {countries.slice(1).map((country, i) => {
           const destPos = convertLatLngToVector3(country.lat, country.lon, globeRadius)
@@ -604,15 +721,31 @@ export function GlobeModel({
               <PingRing position={position} color={country.color} direction={direction} delay={0.5} />
 
               <mesh
+                position={position.clone().add(direction.clone().multiplyScalar(0.08))}
+                onPointerOver={(e) => {
+                  e.stopPropagation()
+                  showPinPointer(country.name)
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation()
+                  clearPinPointer()
+                }}
+                onClick={(e) => handlePinClick(country.name, e as unknown as THREE.Event)}
+                onDoubleClick={(e) => handlePinDoubleClick(country.name, e as unknown as THREE.Event)}
+              >
+                <sphereGeometry args={[0.24, 16, 16]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              </mesh>
+
+              <mesh
                 position={position}
                 onPointerOver={(e) => {
                   e.stopPropagation()
-                  setHoveredPin(country.name)
-                  document.body.style.cursor = 'pointer'
+                  showPinPointer(country.name)
                 }}
-                onPointerOut={() => {
-                  setHoveredPin(null)
-                  document.body.style.cursor = 'default'
+                onPointerOut={(e) => {
+                  e.stopPropagation()
+                  clearPinPointer()
                 }}
                 onClick={(e) => handlePinClick(country.name, e as unknown as THREE.Event)}
                 onDoubleClick={(e) => handlePinDoubleClick(country.name, e as unknown as THREE.Event)}
@@ -625,7 +758,20 @@ export function GlobeModel({
                 />
               </mesh>
 
-              <mesh position={beamPosition} quaternion={quaternion}>
+              <mesh
+                position={beamPosition}
+                quaternion={quaternion}
+                onPointerOver={(e) => {
+                  e.stopPropagation()
+                  showPinPointer(country.name)
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation()
+                  clearPinPointer()
+                }}
+                onClick={(e) => handlePinClick(country.name, e as unknown as THREE.Event)}
+                onDoubleClick={(e) => handlePinDoubleClick(country.name, e as unknown as THREE.Event)}
+              >
                 <cylinderGeometry args={[0.012, 0.018, beamHeight, 8, 1, true]} />
                 <meshStandardMaterial
                   color={country.color}
@@ -637,7 +783,19 @@ export function GlobeModel({
                 />
               </mesh>
 
-              <mesh position={position.clone().add(direction.clone().multiplyScalar(beamHeight))}>
+              <mesh
+                position={position.clone().add(direction.clone().multiplyScalar(beamHeight))}
+                onPointerOver={(e) => {
+                  e.stopPropagation()
+                  showPinPointer(country.name)
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation()
+                  clearPinPointer()
+                }}
+                onClick={(e) => handlePinClick(country.name, e as unknown as THREE.Event)}
+                onDoubleClick={(e) => handlePinDoubleClick(country.name, e as unknown as THREE.Event)}
+              >
                 <sphereGeometry args={[0.025, 8, 8]} />
                 <meshBasicMaterial color={country.color} />
               </mesh>
@@ -647,9 +805,16 @@ export function GlobeModel({
                 center
                 distanceFactor={5.5}
               >
-                <div
+                <button
+                  type="button"
+                  onPointerEnter={() => showPinPointer(country.name)}
+                  onPointerLeave={clearPinPointer}
+                  onClick={(e) => handlePinClick(country.name, e.nativeEvent)}
+                  onDoubleClick={(e) => handlePinDoubleClick(country.name, e.nativeEvent)}
+                  aria-pressed={isActive}
+                  aria-label={`${country.label} 핀 정보 열기`}
                   className={`
-                    px-3 py-1.5 rounded-full border text-[11px] font-medium tracking-wide transition-all duration-300 pointer-events-none select-none whitespace-nowrap
+                    px-3 py-1.5 rounded-full border text-[11px] font-medium tracking-wide transition-all duration-300 select-none whitespace-nowrap cursor-pointer
                     backdrop-blur-md shadow-lg flex items-center gap-1.5
                     ${isHovered || isActive
                       ? 'scale-110 opacity-100 bg-slate-900/90 text-white border-white/30'
@@ -663,7 +828,7 @@ export function GlobeModel({
                   }}
                 >
                   <span>{country.label}</span>
-                </div>
+                </button>
               </Html>
             </group>
           )

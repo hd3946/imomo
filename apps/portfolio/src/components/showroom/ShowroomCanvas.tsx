@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera, Sparkles, Stars } from '@react-three/drei'
-import { Suspense, useState, useRef, useEffect, useMemo } from 'react'
+import { type FormEvent, Suspense, useState, useRef, useEffect, useMemo } from 'react'
 import { GlobeModel } from './GlobeModel'
 import * as THREE from 'three'
 
@@ -291,11 +291,33 @@ const colorPalette = [
   { hex: '#ef4444', label: '네온레드' },
 ]
 
+interface TerritoryNote {
+  id: string
+  gx: number
+  gy: number
+  color: string
+  name: string
+  message: string
+  createdAt: string
+}
+
+const TERRITORY_NOTES_STORAGE_KEY = 'imomo-portfolio-territory-notes'
+
+function isUserTerritory(occupant: string): boolean {
+  return occupant.includes('(나)')
+}
+
 export function ShowroomCanvas() {
   const [activeItem, setActiveItem] = useState<string | null>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const [zoomTarget, setZoomTarget] = useState<THREE.Vector3 | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [lastUserClaim, setLastUserClaim] = useState<{ gx: number; gy: number; color: string } | null>(null)
+  const [claimDraft, setClaimDraft] = useState<{ gx: number; gy: number; color: string } | null>(null)
+  const [territoryNotes, setTerritoryNotes] = useState<TerritoryNote[]>([])
+  const [territoryNoteName, setTerritoryNoteName] = useState('방문자')
+  const [territoryNoteMessage, setTerritoryNoteMessage] = useState('')
+  const [territoryNoteStatus, setTerritoryNoteStatus] = useState('')
   const orbitRef = useRef<any>(null)
 
   // ─── 실시간 픽셀 땅따먹기 상태 관리 ─────────────────────────────────────────
@@ -314,6 +336,20 @@ export function ShowroomCanvas() {
   useEffect(() => {
     const id = setInterval(() => setCurrentTime(new Date()), 60_000)
     return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const rawNotes = window.localStorage.getItem(TERRITORY_NOTES_STORAGE_KEY)
+    if (!rawNotes) return
+
+    try {
+      const parsed = JSON.parse(rawNotes)
+      if (Array.isArray(parsed)) {
+        setTerritoryNotes(parsed.slice(0, 20))
+      }
+    } catch {
+      window.localStorage.removeItem(TERRITORY_NOTES_STORAGE_KEY)
+    }
   }, [])
 
   // ─── 가상 글로벌 봇(Bot) 실시간 땅따먹기 타격 시뮬레이터 ────────────────────
@@ -361,8 +397,55 @@ export function ShowroomCanvas() {
       ...prev,
       [key]: { color, occupant: '이웃 방문자 (나) 👤' },
     }))
-    setLastOccupant('방문자(나)님이 지구본 픽셀 영토 점령!')
+    setLastUserClaim({ gx, gy, color })
+    setClaimDraft({ gx, gy, color })
+    setLastOccupant(`방문자(나)님이 ${gx},${gy} 영토 점령!`)
+    setTerritoryNoteStatus('점령 완료. 이 영토에 방명록을 남길 수 있습니다.')
   }
+
+  const handleTerritoryNoteSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!claimDraft) {
+      setTerritoryNoteStatus('먼저 지구 표면을 클릭해서 영토를 점령해 주세요.')
+      return
+    }
+
+    const trimmedMessage = territoryNoteMessage.trim()
+    if (!trimmedMessage) {
+      setTerritoryNoteStatus('방명록 메시지를 입력해 주세요.')
+      return
+    }
+
+    const nextNote: TerritoryNote = {
+      id: crypto.randomUUID(),
+      gx: claimDraft.gx,
+      gy: claimDraft.gy,
+      color: claimDraft.color,
+      name: territoryNoteName.trim() || '방문자',
+      message: trimmedMessage,
+      createdAt: new Date().toISOString(),
+    }
+    const nextNotes = [nextNote, ...territoryNotes].slice(0, 20)
+
+    setTerritoryNotes(nextNotes)
+    window.localStorage.setItem(TERRITORY_NOTES_STORAGE_KEY, JSON.stringify(nextNotes))
+    setTerritoryNoteMessage('')
+    setTerritoryNoteStatus('점령 방명록에 남겼습니다.')
+  }
+
+  const myTerritoryCount = useMemo(
+    () => Object.values(pixels).filter((pixel) => isUserTerritory(pixel.occupant)).length,
+    [pixels]
+  )
+
+  const territoryNoteMap = useMemo(
+    () =>
+      territoryNotes.reduce<Record<string, { name: string; message: string }>>((notes, note) => {
+        notes[`${note.gx}_${note.gy}`] = { name: note.name, message: note.message }
+        return notes
+      }, {}),
+    [territoryNotes]
+  )
 
   // 점령 컬러 통계 순위 계산
   const colorStats = useMemo(() => {
@@ -437,6 +520,7 @@ export function ShowroomCanvas() {
             activeItem={activeItem}
             isInteracting={isInteracting}
             pixels={pixels}
+            claimNotes={territoryNoteMap}
             userColor={userColor}
             onRegisterPixel={handleRegisterPixel}
             onCameraZoomTarget={(target) => {
@@ -474,6 +558,76 @@ export function ShowroomCanvas() {
         </p>
       </div>
 
+      {/* ─── 지구본 내부 영토 방명록 HUD ─── */}
+      <div className="absolute top-4 right-4 z-20 w-[min(320px,calc(100%-32px))] rounded-2xl bg-slate-950/82 backdrop-blur-md border border-cyan-300/20 text-white shadow-2xl overflow-hidden">
+        <div className="p-4 border-b border-white/10">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-xs font-semibold tracking-wider text-cyan-100 uppercase stripe-body">
+                영토 방명록
+              </h4>
+              <p className="mt-1 text-[10px] text-slate-400 stripe-body">
+                지구 표면을 점령하고 메시지를 남깁니다
+              </p>
+            </div>
+            {claimDraft && (
+              <span className="rounded-full bg-cyan-300/15 px-2 py-1 font-mono text-[10px] text-cyan-200 border border-cyan-300/20">
+                {claimDraft.gx},{claimDraft.gy}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <form className="p-4 space-y-3" onSubmit={handleTerritoryNoteSubmit}>
+          <input
+            type="text"
+            value={territoryNoteName}
+            onChange={(event) => setTerritoryNoteName(event.target.value)}
+            maxLength={24}
+            className="w-full rounded-lg border border-white/10 bg-slate-900/80 px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-cyan-300/60"
+            placeholder="이름"
+          />
+          <textarea
+            value={territoryNoteMessage}
+            onChange={(event) => setTerritoryNoteMessage(event.target.value)}
+            rows={3}
+            maxLength={90}
+            className="w-full resize-none rounded-lg border border-white/10 bg-slate-900/80 px-3 py-2 text-xs leading-relaxed text-white placeholder:text-slate-500 outline-none focus:border-cyan-300/60"
+            placeholder={claimDraft ? '점령한 영토에 남길 메시지' : '먼저 지구 표면을 클릭해 주세요'}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 truncate text-[10px] text-cyan-100/70 stripe-body">
+              {territoryNoteStatus || '클릭한 영토에 방명록이 연결됩니다'}
+            </p>
+            <button
+              type="submit"
+              className="shrink-0 rounded-lg bg-cyan-300 px-3 py-2 text-[11px] font-semibold text-slate-950 transition-colors hover:bg-cyan-200"
+            >
+              남기기
+            </button>
+          </div>
+        </form>
+
+        {territoryNotes.length > 0 && (
+          <div className="border-t border-white/10 p-4 pt-3">
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-slate-400 stripe-body">
+              최근 점령 메시지
+            </p>
+            <div className="space-y-2">
+              {territoryNotes.slice(0, 2).map((note) => (
+                <article key={note.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-2.5">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="truncate text-[11px] font-medium text-white">{note.name}</span>
+                    <span className="font-mono text-[10px] text-cyan-200">{note.gx},{note.gy}</span>
+                  </div>
+                  <p className="line-clamp-2 text-[11px] leading-relaxed text-slate-300">{note.message}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ─── 홀로그래픽 실시간 점령 전황판 UI (Holographic Land Board) ─── */}
       <div className="absolute bottom-4 left-4 p-4 rounded-2xl bg-slate-950/80 backdrop-blur-md border border-white/10 text-white min-w-[260px] shadow-xl max-w-[280px]">
         <h4 className="text-xs font-semibold tracking-wider text-slate-300 uppercase stripe-body flex items-center gap-1.5">
@@ -493,6 +647,18 @@ export function ShowroomCanvas() {
             <span className="w-2.5 h-2.5 rounded-full bg-[#06b6d4] shadow-[0_0_8px_#06b6d4]" />
             <span className="text-[10.5px] text-[#06b6d4] font-medium tracking-wide stripe-body">네온 사이언 (나)</span>
           </div>
+        </div>
+
+        <div className="mt-2 p-2 rounded-lg bg-cyan-400/10 border border-cyan-300/25">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-cyan-100 font-light stripe-body">내 점령 영토</span>
+            <span className="font-mono text-[12px] text-cyan-300 font-semibold">{myTerritoryCount} px</span>
+          </div>
+          <p className="mt-1 text-[10px] text-cyan-100/75 font-light stripe-body truncate">
+            {lastUserClaim
+              ? `최근 점령: ${lastUserClaim.gx},${lastUserClaim.gy}`
+              : '지구 표면을 클릭하면 여기에 표시됩니다'}
+          </p>
         </div>
 
         {/* 점령 순위 통계 */}
