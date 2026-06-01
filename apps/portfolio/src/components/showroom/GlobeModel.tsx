@@ -36,11 +36,11 @@ interface ClaimedTerritory {
 }
 
 const countries: CountryPin[] = [
-  { name: '한국 (Seoul)', label: '🇰🇷 대한민국', lat: 37.5665, lon: 126.9780, color: '#06b6d4' },
+  { name: '한국 (Seoul)', label: '🇰🇷 대한민국', lat: 37.5665, lon: 126.978, color: '#06b6d4' },
   { name: '일본 (Tokyo)', label: '🇯🇵 日本 (Japan)', lat: 35.6762, lon: 139.6503, color: '#ec4899' },
   { name: '중국 (Beijing)', label: '🇨🇳 中国 (China)', lat: 39.9042, lon: 116.4074, color: '#f59e0b' },
   { name: '베트남 (Hanoi)', label: '🇻🇳 Việt Nam', lat: 21.0285, lon: 105.8542, color: '#10b981' },
-  { name: '미국 (New York)', label: '🇺🇸 United States', lat: 40.7128, lon: -74.0060, color: '#8b5cf6' },
+  { name: '미국 (New York)', label: '🇺🇸 United States', lat: 40.7128, lon: -74.006, color: '#8b5cf6' },
 ]
 
 // 위도/경도 → 3D Vector3 변환
@@ -57,13 +57,7 @@ function isUserTerritory(occupant: string): boolean {
   return occupant.includes('(나)')
 }
 
-function drawTerritoryPatch(
-  ctx: CanvasRenderingContext2D,
-  gx: number,
-  gy: number,
-  color: string,
-  isMine: boolean
-) {
+function drawTerritoryPatch(ctx: CanvasRenderingContext2D, gx: number, gy: number, color: string, isMine: boolean) {
   const size = isMine ? 5 : 3
   const half = Math.floor(size / 2)
   const x = Math.max(0, Math.min(ctx.canvas.width - size, gx - half))
@@ -97,7 +91,7 @@ function PingRing({ position, color, direction, delay }: PingRingProps) {
 
   const offsetPos = useMemo(
     () => position.clone().add(direction.clone().normalize().multiplyScalar(0.02)),
-    [position, direction]
+    [position, direction],
   )
 
   useFrame((_, delta) => {
@@ -118,12 +112,7 @@ function PingRing({ position, color, direction, delay }: PingRingProps) {
   return (
     <mesh ref={ringRef} position={offsetPos} quaternion={quaternion}>
       <ringGeometry args={[0.07, 0.095, 32]} />
-      <meshBasicMaterial
-        color={color}
-        transparent
-        depthWrite={false}
-        side={THREE.DoubleSide}
-      />
+      <meshBasicMaterial color={color} transparent depthWrite={false} side={THREE.DoubleSide} />
     </mesh>
   )
 }
@@ -148,11 +137,7 @@ function ParticleExplosion({ position, color, onDone }: ParticleExplosionProps) 
       pos[i * 3] = position.x
       pos[i * 3 + 1] = position.y
       pos[i * 3 + 2] = position.z
-      vel.push(
-        (Math.random() - 0.5) * 0.6,
-        (Math.random() - 0.5) * 0.6,
-        (Math.random() - 0.5) * 0.6
-      )
+      vel.push((Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6)
     }
     return { positions: pos, velocities: vel }
   }, [position])
@@ -175,7 +160,7 @@ function ParticleExplosion({ position, color, onDone }: ParticleExplosionProps) 
         i,
         position.x + (velocities[i * 3] ?? 0) * t * 1.8,
         position.y + (velocities[i * 3 + 1] ?? 0) * t * 1.8,
-        position.z + (velocities[i * 3 + 2] ?? 0) * t * 1.8
+        position.z + (velocities[i * 3 + 2] ?? 0) * t * 1.8,
       )
     }
     posAttr.needsUpdate = true
@@ -185,12 +170,7 @@ function ParticleExplosion({ position, color, onDone }: ParticleExplosionProps) 
   return (
     <points ref={pointsRef}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[positions, 3]}
-          count={COUNT}
-          itemSize={3}
-        />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={COUNT} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial
         color={color}
@@ -278,8 +258,9 @@ export function GlobeModel({
   onCameraZoomTarget,
 }: GlobeModelProps) {
   const globeGroupRef = useRef<THREE.Group>(null!)
-  const cloudsRef = useRef<THREE.Mesh>(null!)
   const [hoveredPin, setHoveredPin] = useState<string | null>(null)
+  const [hoveredClaimKey, setHoveredClaimKey] = useState<string | null>(null)
+  const [selectedClaimKey, setSelectedClaimKey] = useState<string | null>(null)
   const [hoveredPixel, setHoveredPixel] = useState<{ gx: number; gy: number; pos: THREE.Vector3 } | null>(null)
   const rotationSpeedRef = useRef(0.002)
   const globePointerDownRef = useRef<{ x: number; y: number } | null>(null)
@@ -291,19 +272,18 @@ export function GlobeModel({
   const globeRadius = 1.5
 
   // 텍스처 로딩
-  const earthTexture = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg')
-  const earthLights = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_lights_2048.png')
-  const earthClouds = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png')
+  const earthTexture = useTexture(
+    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg',
+  )
+  const earthLights = useTexture(
+    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_lights_2048.png',
+  )
 
   earthTexture.colorSpace = THREE.SRGBColorSpace
   earthLights.colorSpace = THREE.SRGBColorSpace
-  earthClouds.colorSpace = THREE.SRGBColorSpace
 
   // 아크 속도 랜덤화
-  const arcSpeeds = useMemo(
-    () => countries.slice(1).map(() => 0.18 + Math.random() * 0.38),
-    []
-  )
+  const arcSpeeds = useMemo(() => countries.slice(1).map(() => 0.18 + Math.random() * 0.38), [])
 
   // ─── 실시간 픽셀 그리기 캔버스 및 텍스처 ────────────────────────────────────
   const canvasSize = 360
@@ -330,7 +310,7 @@ export function GlobeModel({
   const claimedTerritories = useMemo<ClaimedTerritory[]>(() => {
     const userClaims = Object.entries(pixels)
       .filter(([key, val]) => isUserTerritory(val.occupant) || claimNotes[key])
-      .slice(-8)
+      .slice(-20)
 
     return userClaims.map(([key, val], index) => {
       const [gxStr, gyStr] = key.split('_')
@@ -422,9 +402,6 @@ export function GlobeModel({
       globeGroupRef.current.rotation.y += rotationSpeedRef.current
       globeGroupRef.current.updateMatrixWorld()
     }
-    if (cloudsRef.current) {
-      cloudsRef.current.rotation.y += rotationSpeedRef.current
-    }
   })
 
   const handleGlobePointerDown = (e: any) => {
@@ -450,6 +427,7 @@ export function GlobeModel({
   // 지구 표면 마우스 단일 클릭 시 픽셀 점령 등록
   const handleGlobeClick = (e: any) => {
     e.stopPropagation()
+    setSelectedClaimKey(null)
     if (didDragBeforeGlobeClick(e) || !e.point) {
       globePointerDownRef.current = null
       return
@@ -490,6 +468,21 @@ export function GlobeModel({
   const clearPinPointer = () => {
     setHoveredPin(null)
     document.body.style.cursor = 'default'
+  }
+
+  const showClaimPointer = (key: string) => {
+    setHoveredClaimKey(key)
+    document.body.style.cursor = 'pointer'
+  }
+
+  const clearClaimPointer = () => {
+    setHoveredClaimKey(null)
+    document.body.style.cursor = 'default'
+  }
+
+  const handleClaimMarkerClick = (key: string, e: any) => {
+    e.stopPropagation()
+    setSelectedClaimKey((currentKey) => (currentKey === key ? null : key))
   }
 
   // 핀 클릭
@@ -603,19 +596,6 @@ export function GlobeModel({
           />
         </mesh>
 
-        {/* ② 구름 레이어 */}
-        <mesh ref={cloudsRef}>
-          <sphereGeometry args={[globeRadius + 0.03, 64, 64]} />
-          <meshStandardMaterial
-            alphaMap={earthClouds}
-            transparent
-            color="#ffffff"
-            opacity={0.35}
-            depthWrite={false}
-            blending={THREE.NormalBlending}
-          />
-        </mesh>
-
         {/* ③ 대기광 아우라 */}
         <mesh>
           <sphereGeometry args={[globeRadius + 0.08, 32, 32]} />
@@ -631,13 +611,7 @@ export function GlobeModel({
         {/* ④ 적도 네온 링 */}
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <ringGeometry args={[globeRadius + 0.04, globeRadius + 0.06, 64]} />
-          <meshStandardMaterial
-            color="#533afd"
-            emissive="#533afd"
-            emissiveIntensity={1.2}
-            transparent
-            opacity={0.4}
-          />
+          <meshStandardMaterial color="#533afd" emissive="#533afd" emissiveIntensity={1.2} transparent opacity={0.4} />
         </mesh>
 
         {/* ─── 직접 점령 유도를 위한 마우스 호버 가이드 ─── */}
@@ -645,12 +619,7 @@ export function GlobeModel({
           <group position={hoveredPixel.pos}>
             <mesh>
               <sphereGeometry args={[0.03, 16, 16]} />
-              <meshBasicMaterial
-                color="#ffffff"
-                transparent
-                opacity={0.8}
-                blending={THREE.AdditiveBlending}
-              />
+              <meshBasicMaterial color="#ffffff" transparent opacity={0.8} blending={THREE.AdditiveBlending} />
             </mesh>
             <mesh rotation={[Math.PI / 2, 0, 0]}>
               <ringGeometry args={[0.04, 0.06, 32]} />
@@ -665,43 +634,89 @@ export function GlobeModel({
           </group>
         )}
 
-        {/* ─── 내가 점령한 영토 표식 ─── */}
+        {/* ─── 점령 영토 기반 방명록 표식 ─── */}
         {claimedTerritories.map((territory) => {
           const note = claimNotes[territory.key]
+          const isSelected = selectedClaimKey === territory.key
+          const isHovered = hoveredClaimKey === territory.key
+          const isFocused = isSelected || isHovered || territory.isLatest
+          const markerSize = isFocused ? 0.07 : 0.046
+          const ringOuter = isFocused ? 0.145 : 0.108
+          const labelText = note
+            ? note.message
+            : `${territory.occupant} 점령 영토 ${territory.gx},${territory.gy}`
 
           return (
             <group key={`claim-${territory.key}`} position={territory.position}>
-              <mesh>
-                <sphereGeometry args={[territory.isLatest ? 0.065 : 0.045, 16, 16]} />
+              <mesh
+                onPointerOver={(e) => {
+                  e.stopPropagation()
+                  showClaimPointer(territory.key)
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation()
+                  clearClaimPointer()
+                }}
+                onClick={(e) => handleClaimMarkerClick(territory.key, e)}
+              >
+                <sphereGeometry args={[markerSize, 16, 16]} />
                 <meshBasicMaterial
                   color={territory.color}
                   transparent
-                  opacity={territory.isLatest ? 1 : 0.82}
+                  opacity={isFocused ? 1 : 0.82}
                   blending={THREE.AdditiveBlending}
                   depthWrite={false}
                 />
               </mesh>
-              <mesh quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), territory.direction)}>
-                <ringGeometry args={[0.08, territory.isLatest ? 0.13 : 0.11, 32]} />
+              <mesh
+                quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), territory.direction)}
+                onPointerOver={(e) => {
+                  e.stopPropagation()
+                  showClaimPointer(territory.key)
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation()
+                  clearClaimPointer()
+                }}
+                onClick={(e) => handleClaimMarkerClick(territory.key, e)}
+              >
+                <ringGeometry args={[0.08, ringOuter, 32]} />
                 <meshBasicMaterial
-                  color={territory.isLatest ? '#ffffff' : territory.color}
+                  color={note ? '#ffffff' : territory.color}
                   transparent
-                  opacity={territory.isLatest ? 0.86 : 0.48}
+                  opacity={isFocused ? 0.86 : 0.48}
                   side={THREE.DoubleSide}
                   blending={THREE.AdditiveBlending}
                   depthWrite={false}
                 />
               </mesh>
-              {territory.isLatest && (
-                <Html
-                  position={territory.direction.clone().multiplyScalar(0.22)}
-                  center
-                  distanceFactor={5.8}
-                >
-                  <div className="max-w-[240px] px-2.5 py-1 rounded-full bg-cyan-400/95 text-slate-950 border border-white/70 shadow-[0_0_18px_rgba(34,211,238,0.65)] text-[10px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis select-none pointer-events-none">
-                    {note
-                      ? `${note.name}: ${note.message}`
-                      : `내 점령 영토 ${territory.gx},${territory.gy}`}
+              <mesh
+                position={territory.direction.clone().multiplyScalar(0.04)}
+                onPointerOver={(e) => {
+                  e.stopPropagation()
+                  showClaimPointer(territory.key)
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation()
+                  clearClaimPointer()
+                }}
+                onClick={(e) => handleClaimMarkerClick(territory.key, e)}
+              >
+                <sphereGeometry args={[0.14, 12, 12]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              </mesh>
+              {isFocused && (
+                <Html position={territory.direction.clone().multiplyScalar(0.24)} center distanceFactor={5.6}>
+                  <div className="max-w-[260px] rounded-xl border border-cyan-200/45 bg-slate-950/92 px-3 py-2 text-white shadow-[0_0_20px_rgba(34,211,238,0.42)] backdrop-blur-md select-none pointer-events-none">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="truncate text-[10px] font-semibold text-cyan-100">
+                        {note ? note.name : territory.occupant}
+                      </span>
+                      <span className="shrink-0 font-mono text-[9px] text-cyan-200/80">
+                        {territory.gx},{territory.gy}
+                      </span>
+                    </div>
+                    <p className="line-clamp-2 text-[10.5px] leading-relaxed text-slate-200">{labelText}</p>
                   </div>
                 </Html>
               )}
@@ -713,9 +728,7 @@ export function GlobeModel({
         {countries.slice(1).map((country, i) => {
           const destPos = convertLatLngToVector3(country.lat, country.lon, globeRadius)
           const isHighlighted =
-            hoveredPin === country.name ||
-            hoveredPin === '한국 (Seoul)' ||
-            activeItem === country.name
+            hoveredPin === country.name || hoveredPin === '한국 (Seoul)' || activeItem === country.name
           return (
             <NeonArc
               key={`arc-${country.name}`}
@@ -826,11 +839,7 @@ export function GlobeModel({
                 <meshBasicMaterial color={country.color} />
               </mesh>
 
-              <Html
-                position={position.clone().add(direction.clone().multiplyScalar(0.2))}
-                center
-                distanceFactor={5.5}
-              >
+              <Html position={position.clone().add(direction.clone().multiplyScalar(0.2))} center distanceFactor={5.5}>
                 <button
                   type="button"
                   onPointerEnter={() => showPinPointer(country.name)}
@@ -842,9 +851,10 @@ export function GlobeModel({
                   className={`
                     px-3 py-1.5 rounded-full border text-[11px] font-medium tracking-wide transition-all duration-300 select-none whitespace-nowrap cursor-pointer
                     backdrop-blur-md shadow-lg flex items-center gap-1.5
-                    ${isHovered || isActive
-                      ? 'scale-110 opacity-100 bg-slate-900/90 text-white border-white/30'
-                      : 'scale-90 opacity-75 bg-slate-950/70 text-slate-300 border-white/10'
+                    ${
+                      isHovered || isActive
+                        ? 'scale-110 opacity-100 bg-slate-900/90 text-white border-white/30'
+                        : 'scale-90 opacity-75 bg-slate-950/70 text-slate-300 border-white/10'
                     }
                   `}
                   style={{
