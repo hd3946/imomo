@@ -121,6 +121,7 @@ interface OrbitingSatelliteProps {
   color?: string
   panelColor?: string
   scale?: number
+  beaconIntensity?: number
 }
 
 function OrbitingSatellite({
@@ -131,6 +132,7 @@ function OrbitingSatellite({
   color = '#9fb3c8',
   panelColor = '#1a3c6b',
   scale = 1,
+  beaconIntensity = 0.4,
 }: OrbitingSatelliteProps) {
   const groupRef = useRef<THREE.Group>(null!)
   const angleRef = useRef(initialPhase)
@@ -185,19 +187,287 @@ function OrbitingSatellite({
           emissiveIntensity={0.9}
         />
       </mesh>
-      {/* 깜박이는 빨간 항법등 */}
-      <pointLight color="#ff3333" intensity={0.4} distance={0.4} />
+      {/* 빨간 항법등 */}
+      {beaconIntensity > 0 && <pointLight color="#ff3333" intensity={beaconIntensity} distance={0.4} />}
     </group>
   )
 }
 
 const satellitesData = [
-  { orbitRadius: 2.1, inclination: Math.PI * 0.15, speed: 0.8, initialPhase: 0, color: '#e2e8f0', panelColor: '#1e3a8a', scale: 0.9 },
-  { orbitRadius: 2.3, inclination: Math.PI * 0.35, speed: 1.1, initialPhase: Math.PI * 0.5, color: '#cbd5e1', panelColor: '#0f766e', scale: 1.0 },
-  { orbitRadius: 2.5, inclination: Math.PI * 0.55, speed: 0.6, initialPhase: Math.PI * 1.0, color: '#94a3b8', panelColor: '#b45309', scale: 0.85 },
-  { orbitRadius: 2.2, inclination: Math.PI * -0.25, speed: 1.3, initialPhase: Math.PI * 1.5, color: '#9fb3c8', panelColor: '#0369a1', scale: 1.1 },
-  { orbitRadius: 2.4, inclination: Math.PI * -0.45, speed: 0.7, initialPhase: Math.PI * 0.25, color: '#64748b', panelColor: '#6d28d9', scale: 0.95 },
-  { orbitRadius: 2.6, inclination: Math.PI * 0.75, speed: 0.9, initialPhase: Math.PI * 0.75, color: '#cbd5e1', panelColor: '#be185d', scale: 0.8 },
+  {
+    orbitRadius: 2.1,
+    inclination: Math.PI * 0.15,
+    speed: 0.8,
+    initialPhase: 0,
+    color: '#e2e8f0',
+    panelColor: '#1e3a8a',
+    scale: 0.9,
+  },
+  {
+    orbitRadius: 2.3,
+    inclination: Math.PI * 0.35,
+    speed: 1.1,
+    initialPhase: Math.PI * 0.5,
+    color: '#cbd5e1',
+    panelColor: '#0f766e',
+    scale: 1.0,
+  },
+  {
+    orbitRadius: 2.5,
+    inclination: Math.PI * 0.55,
+    speed: 0.6,
+    initialPhase: Math.PI * 1.0,
+    color: '#94a3b8',
+    panelColor: '#b45309',
+    scale: 0.85,
+  },
+  {
+    orbitRadius: 2.2,
+    inclination: Math.PI * -0.25,
+    speed: 1.3,
+    initialPhase: Math.PI * 1.5,
+    color: '#9fb3c8',
+    panelColor: '#0369a1',
+    scale: 1.1,
+  },
+  {
+    orbitRadius: 2.4,
+    inclination: Math.PI * -0.45,
+    speed: 0.7,
+    initialPhase: Math.PI * 0.25,
+    color: '#64748b',
+    panelColor: '#6d28d9',
+    scale: 0.95,
+  },
+  {
+    orbitRadius: 2.6,
+    inclination: Math.PI * 0.75,
+    speed: 0.9,
+    initialPhase: Math.PI * 0.75,
+    color: '#cbd5e1',
+    panelColor: '#be185d',
+    scale: 0.8,
+  },
+  {
+    orbitRadius: 2.05,
+    inclination: Math.PI * 0.05,
+    speed: 1.45,
+    initialPhase: Math.PI * 0.12,
+    color: '#f8fafc',
+    panelColor: '#0e7490',
+    scale: 0.72,
+    beaconIntensity: 0.12,
+  },
+  {
+    orbitRadius: 2.12,
+    inclination: Math.PI * -0.08,
+    speed: 1.25,
+    initialPhase: Math.PI * 0.32,
+    color: '#cbd5e1',
+    panelColor: '#7c3aed',
+    scale: 0.64,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.18,
+    inclination: Math.PI * 0.22,
+    speed: 0.95,
+    initialPhase: Math.PI * 0.64,
+    color: '#e5e7eb',
+    panelColor: '#15803d',
+    scale: 0.7,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.26,
+    inclination: Math.PI * -0.34,
+    speed: 1.6,
+    initialPhase: Math.PI * 0.88,
+    color: '#94a3b8',
+    panelColor: '#be123c',
+    scale: 0.58,
+    beaconIntensity: 0.12,
+  },
+  {
+    orbitRadius: 2.32,
+    inclination: Math.PI * 0.48,
+    speed: 0.72,
+    initialPhase: Math.PI * 1.15,
+    color: '#f1f5f9',
+    panelColor: '#1d4ed8',
+    scale: 0.68,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.38,
+    inclination: Math.PI * -0.58,
+    speed: 1.05,
+    initialPhase: Math.PI * 1.36,
+    color: '#a8a29e',
+    panelColor: '#ca8a04',
+    scale: 0.62,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.45,
+    inclination: Math.PI * 0.68,
+    speed: 0.82,
+    initialPhase: Math.PI * 1.62,
+    color: '#d1d5db',
+    panelColor: '#c026d3',
+    scale: 0.76,
+    beaconIntensity: 0.1,
+  },
+  {
+    orbitRadius: 2.52,
+    inclination: Math.PI * -0.72,
+    speed: 1.18,
+    initialPhase: Math.PI * 1.82,
+    color: '#e2e8f0',
+    panelColor: '#047857',
+    scale: 0.6,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.58,
+    inclination: Math.PI * 0.82,
+    speed: 0.58,
+    initialPhase: Math.PI * 0.18,
+    color: '#cbd5e1',
+    panelColor: '#ea580c',
+    scale: 0.74,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.65,
+    inclination: Math.PI * -0.88,
+    speed: 1.38,
+    initialPhase: Math.PI * 0.42,
+    color: '#94a3b8',
+    panelColor: '#0891b2',
+    scale: 0.57,
+    beaconIntensity: 0.1,
+  },
+  {
+    orbitRadius: 2.72,
+    inclination: Math.PI * 0.12,
+    speed: 0.66,
+    initialPhase: Math.PI * 0.72,
+    color: '#f8fafc',
+    panelColor: '#4338ca',
+    scale: 0.65,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.78,
+    inclination: Math.PI * -0.18,
+    speed: 1.5,
+    initialPhase: Math.PI * 0.96,
+    color: '#cbd5e1',
+    panelColor: '#0f766e',
+    scale: 0.55,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.84,
+    inclination: Math.PI * 0.28,
+    speed: 0.88,
+    initialPhase: Math.PI * 1.22,
+    color: '#e7e5e4',
+    panelColor: '#9333ea',
+    scale: 0.63,
+    beaconIntensity: 0.08,
+  },
+  {
+    orbitRadius: 2.9,
+    inclination: Math.PI * -0.38,
+    speed: 1.12,
+    initialPhase: Math.PI * 1.46,
+    color: '#dbeafe',
+    panelColor: '#b91c1c',
+    scale: 0.59,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 2.96,
+    inclination: Math.PI * 0.52,
+    speed: 0.76,
+    initialPhase: Math.PI * 1.7,
+    color: '#f1f5f9',
+    panelColor: '#0369a1',
+    scale: 0.69,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 3.02,
+    inclination: Math.PI * -0.62,
+    speed: 1.32,
+    initialPhase: Math.PI * 1.9,
+    color: '#a3a3a3',
+    panelColor: '#65a30d',
+    scale: 0.53,
+    beaconIntensity: 0.08,
+  },
+  {
+    orbitRadius: 3.08,
+    inclination: Math.PI * 0.74,
+    speed: 0.68,
+    initialPhase: Math.PI * 0.08,
+    color: '#e2e8f0',
+    panelColor: '#db2777',
+    scale: 0.61,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 3.14,
+    inclination: Math.PI * -0.78,
+    speed: 1.22,
+    initialPhase: Math.PI * 0.54,
+    color: '#cbd5e1',
+    panelColor: '#2563eb',
+    scale: 0.56,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 3.2,
+    inclination: Math.PI * 0.92,
+    speed: 0.84,
+    initialPhase: Math.PI * 1.04,
+    color: '#f8fafc',
+    panelColor: '#a16207',
+    scale: 0.66,
+    beaconIntensity: 0.08,
+  },
+  {
+    orbitRadius: 3.26,
+    inclination: Math.PI * -0.94,
+    speed: 1.08,
+    initialPhase: Math.PI * 1.28,
+    color: '#94a3b8',
+    panelColor: '#0d9488',
+    scale: 0.52,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 3.32,
+    inclination: Math.PI * 0.44,
+    speed: 0.94,
+    initialPhase: Math.PI * 1.58,
+    color: '#e5e7eb',
+    panelColor: '#e11d48',
+    scale: 0.58,
+    beaconIntensity: 0,
+  },
+  {
+    orbitRadius: 3.38,
+    inclination: Math.PI * -0.5,
+    speed: 1.42,
+    initialPhase: Math.PI * 1.78,
+    color: '#cbd5e1',
+    panelColor: '#7e22ce',
+    scale: 0.54,
+    beaconIntensity: 0.08,
+  },
 ]
 
 // ─── 공전하는 달 ──────────────────────────────────────────────────────────────
@@ -213,7 +483,7 @@ function OrbitingMoon() {
     meshRef.current.position.set(
       ORBIT_RADIUS * Math.cos(a),
       ORBIT_RADIUS * Math.sin(a) * Math.sin(INCLINATION),
-      ORBIT_RADIUS * Math.sin(a) * Math.cos(INCLINATION)
+      ORBIT_RADIUS * Math.sin(a) * Math.cos(INCLINATION),
     )
     // 자전
     meshRef.current.rotation.y += delta * 0.18
@@ -239,31 +509,36 @@ const timezones: Record<string, string> = {
 const countryDetails: Record<string, { title: string; description: string; linkId: string; btnText: string }> = {
   '한국 (Seoul)': {
     title: '국내 웹 서비스 및 AI 에이전트 협업 설계',
-    description: 'Next.js 15와 Tailwind CSS 4 환경에서 AI 코딩 협업을 극대화하기 위한 프로젝트 포트폴리오를 설계하고 구축했습니다.',
+    description:
+      'Next.js 15와 Tailwind CSS 4 환경에서 AI 코딩 협업을 극대화하기 위한 프로젝트 포트폴리오를 설계하고 구축했습니다.',
     linkId: 'projects',
     btnText: '한국 프로젝트 보기',
   },
   '일본 (Tokyo)': {
     title: '글로벌 다국어 로컬라이제이션 연구',
-    description: '다국어 번역 지원 및 아시아권 현지화에 맞춘 Next.js i18n 라우팅 기법과 최적화 기법을 학습 및 적용했습니다.',
+    description:
+      '다국어 번역 지원 및 아시아권 현지화에 맞춘 Next.js i18n 라우팅 기법과 최적화 기법을 학습 및 적용했습니다.',
     linkId: 'skills',
     btnText: '보유 기술 스택 확인',
   },
   '중국 (Beijing)': {
     title: '대용량 트래픽 렌더링 성능 최적화',
-    description: '가상 스크롤(Virtual Scroll) 및 3D WebGL 컴포넌트 마운팅 시 프레임 공식 손실을 없애기 위한 메모리 누수 방지 기법을 구현했습니다.',
+    description:
+      '가상 스크롤(Virtual Scroll) 및 3D WebGL 컴포넌트 마운팅 시 프레임 공식 손실을 없애기 위한 메모리 누수 방지 기법을 구현했습니다.',
     linkId: 'about',
     btnText: '프로필 및 이력 보기',
   },
   '베트남 (Hanoi)': {
     title: '해외 아웃소싱 협업 및 실시간 데이터베이스 설계',
-    description: 'Supabase의 실시간 DB 동기화 시스템을 기반으로 동남아 협업 환경과의 실시간 채팅 및 알림 시스템을 연동했습니다.',
+    description:
+      'Supabase의 실시간 DB 동기화 시스템을 기반으로 동남아 협업 환경과의 실시간 채팅 및 알림 시스템을 연동했습니다.',
     linkId: 'contact',
     btnText: '협업 연락처 보기',
   },
   '미국 (New York)': {
     title: '글로벌 핀테크 인프라 및 결제 연동 플랫폼',
-    description: 'Stripe 결제 API와 다중 통화 지원 등 금융 인프라의 설계 철학을 연구하고 전자상거래 데모 플랫폼을 제작했습니다.',
+    description:
+      'Stripe 결제 API와 다중 통화 지원 등 금융 인프라의 설계 철학을 연구하고 전자상거래 데모 플랫폼을 제작했습니다.',
     linkId: 'projects',
     btnText: '글로벌 전자상거래 프로젝트',
   },
@@ -279,7 +554,34 @@ const virtualBots = [
   { name: 'Pierre (France) 🇫🇷', color: '#ef4444' },
   { name: 'Hans (Germany) 🇩🇪', color: '#eab308' },
   { name: 'Sofia (Brazil) 🇧🇷', color: '#3b82f6' },
+  { name: 'Amina (Kenya) 🇰🇪', color: '#14b8a6' },
+  { name: 'Omar (Egypt) 🇪🇬', color: '#f97316' },
+  { name: 'Eva (Spain) 🇪🇸', color: '#e11d48' },
+  { name: 'Luca (Italy) 🇮🇹', color: '#22c55e' },
+  { name: 'Noah (Canada) 🇨🇦', color: '#ef4444' },
+  { name: 'Maya (India) 🇮🇳', color: '#f59e0b' },
+  { name: 'Liam (UK) 🇬🇧', color: '#2563eb' },
+  { name: 'Emma (Australia) 🇦🇺', color: '#38bdf8' },
+  { name: 'Noura (UAE) 🇦🇪', color: '#a855f7' },
+  { name: 'Mateusz (Poland) 🇵🇱', color: '#dc2626' },
+  { name: 'Ingrid (Norway) 🇳🇴', color: '#0ea5e9' },
+  { name: 'Diego (Mexico) 🇲🇽', color: '#16a34a' },
+  { name: 'Hana (Czechia) 🇨🇿', color: '#7c3aed' },
+  { name: 'Leo (Argentina) 🇦🇷', color: '#06b6d4' },
+  { name: 'Sara (Sweden) 🇸🇪', color: '#eab308' },
+  { name: 'Anika (Germany) 🇩🇪', color: '#84cc16' },
+  { name: 'Kenji (Japan) 🇯🇵', color: '#fb7185' },
+  { name: 'Linh (Vietnam) 🇻🇳', color: '#34d399' },
+  { name: 'Zola (South Africa) 🇿🇦', color: '#f43f5e' },
+  { name: 'Mira (Turkey) 🇹🇷', color: '#b91c1c' },
+  { name: 'Caleb (USA) 🇺🇸', color: '#6366f1' },
+  { name: 'Theo (Greece) 🇬🇷', color: '#0284c7' },
+  { name: 'Rina (Indonesia) 🇮🇩', color: '#f87171' },
+  { name: 'Pavel (Ukraine) 🇺🇦', color: '#facc15' },
 ]
+
+const BOT_ATTACKS_PER_TICK = 2
+const BOT_ATTACK_INTERVAL_MS = 2800
 
 // 유저가 선택 가능한 네온 컬러 팔레트
 const colorPalette = [
@@ -352,7 +654,7 @@ export function ShowroomCanvas() {
     '105_21': { color: '#10b981', occupant: 'Minh (Vietnam) 🇻🇳' },
     '286_40': { color: '#8b5cf6', occupant: 'Alice (USA) 🇺🇸' },
   })
-  
+
   const [userColor, setUserColor] = useState('#06b6d4') // 유저 기본 네온 색상
   const [lastOccupant, setLastOccupant] = useState<string>('시스템 초기화 완료')
 
@@ -377,10 +679,10 @@ export function ShowroomCanvas() {
 
   useEffect(() => {
     const storedNotes = safeParseStoredList<TerritoryNote>(
-      window.localStorage.getItem(TERRITORY_NOTES_STORAGE_KEY)
+      window.localStorage.getItem(TERRITORY_NOTES_STORAGE_KEY),
     ).slice(0, 20)
     const storedClaims = safeParseStoredList<TerritoryClaim>(
-      window.localStorage.getItem(TERRITORY_CLAIMS_STORAGE_KEY)
+      window.localStorage.getItem(TERRITORY_CLAIMS_STORAGE_KEY),
     ).slice(0, 20)
 
     if (storedNotes.length > 0) {
@@ -421,9 +723,7 @@ export function ShowroomCanvas() {
         return response.json()
       })
       .then((data) => {
-        const remoteNotes = Array.isArray(data.notes)
-          ? (data.notes as TerritoryNote[]).slice(0, 20)
-          : []
+        const remoteNotes = Array.isArray(data.notes) ? (data.notes as TerritoryNote[]).slice(0, 20) : []
 
         setTerritoryNotes(remoteNotes)
         applyTerritoryNotesToGlobe(remoteNotes)
@@ -445,22 +745,32 @@ export function ShowroomCanvas() {
   // ─── 가상 글로벌 봇(Bot) 실시간 땅따먹기 타격 시뮬레이터 ────────────────────
   useEffect(() => {
     const botTimer = setInterval(() => {
-      const bot = virtualBots[Math.floor(Math.random() * virtualBots.length)]!
-      
-      // 전세계 대륙들이 주로 포진된 위경도 위주로 가중치 랜덤 타격
-      // 경도: -180 ~ 180 (격자: 0 ~ 359)
-      // 위도: -60 ~ 80 (격자: 10 ~ 150)
-      const randomLon = Math.floor(Math.random() * 360)
-      const randomLat = Math.floor(40 + Math.random() * 100) // 극지방 제외 대륙 근처 타격
-      
-      const key = `${randomLon}_${randomLat}`
-      
-      setPixels((prev) => ({
-        ...prev,
-        [key]: { color: bot.color, occupant: bot.name },
-      }))
-      setLastOccupant(`${bot.name}님이 신규 영역 점령!`)
-    }, 4500) // 4.5초마다 봇 타격 이벤트
+      const strikes = Array.from({ length: BOT_ATTACKS_PER_TICK }, () => {
+        const bot = virtualBots[Math.floor(Math.random() * virtualBots.length)]!
+
+        // 전세계 대륙들이 주로 포진된 위경도 위주로 가중치 랜덤 타격
+        // 경도: -180 ~ 180 (격자: 0 ~ 359)
+        // 위도: -60 ~ 80 (격자: 10 ~ 150)
+        const randomLon = Math.floor(Math.random() * 360)
+        const randomLat = Math.floor(40 + Math.random() * 100) // 극지방 제외 대륙 근처 타격
+
+        return {
+          key: `${randomLon}_${randomLat}`,
+          bot,
+        }
+      })
+
+      setPixels((prev) => {
+        const next = { ...prev }
+        strikes.forEach(({ key, bot }) => {
+          next[key] = { color: bot.color, occupant: bot.name }
+        })
+        return next
+      })
+
+      const commanders = strikes.map(({ bot }) => bot.name.split(' ')[0]).join(', ')
+      setLastOccupant(`${commanders} 봇 연합이 ${strikes.length}개 영역 동시 점령!`)
+    }, BOT_ATTACK_INTERVAL_MS)
 
     return () => clearInterval(botTimer)
   }, [])
@@ -488,9 +798,7 @@ export function ShowroomCanvas() {
       [key]: { color, occupant: '이웃 방문자 (나) 👤' },
     }))
     const nextClaim: TerritoryClaim = { gx, gy, color, createdAt: new Date().toISOString() }
-    const storedClaims = safeParseStoredList<TerritoryClaim>(
-      window.localStorage.getItem(TERRITORY_CLAIMS_STORAGE_KEY)
-    )
+    const storedClaims = safeParseStoredList<TerritoryClaim>(window.localStorage.getItem(TERRITORY_CLAIMS_STORAGE_KEY))
     const withoutDuplicate = storedClaims.filter((claim) => claim.gx !== gx || claim.gy !== gy)
     const nextClaims = [nextClaim, ...withoutDuplicate].slice(0, 20)
     window.localStorage.setItem(TERRITORY_CLAIMS_STORAGE_KEY, JSON.stringify(nextClaims))
@@ -562,7 +870,7 @@ export function ShowroomCanvas() {
 
   const myTerritoryCount = useMemo(
     () => Object.values(pixels).filter((pixel) => isUserTerritory(pixel.occupant)).length,
-    [pixels]
+    [pixels],
   )
 
   const territoryNoteMap = useMemo(
@@ -571,7 +879,7 @@ export function ShowroomCanvas() {
         notes[`${note.gx}_${note.gy}`] = { name: note.name, message: note.message }
         return notes
       }, {}),
-    [territoryNotes]
+    [territoryNotes],
   )
 
   // 점령 컬러 통계 순위 계산
@@ -676,11 +984,14 @@ export function ShowroomCanvas() {
       <div className="absolute top-4 left-4 p-4 rounded-xl bg-slate-900/85 backdrop-blur-md border border-white/10 pointer-events-none max-w-[300px]">
         <h4 className="text-xs font-semibold text-white tracking-wide uppercase stripe-body">Interactive 3D Globe</h4>
         <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed font-light stripe-body">
-          🖱️ 드래그로 회전 · 클릭으로 정보 확인<br />
+          🖱️ 드래그로 회전 · 클릭으로 정보 확인
+          <br />
           <span className="text-cyan-400 font-medium animate-pulse drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]">
             🖱️ 지구 표면 클릭 시 픽셀 영토 점령 (직접 참여)
-          </span><br />
-          🖱️ 핀 더블클릭으로 해당 국가 줌인<br />
+          </span>
+          <br />
+          🖱️ 핀 더블클릭으로 해당 국가 줌인
+          <br />
           ⌨️ ← → 방향키로 핀 탐색 · ESC로 닫기
         </p>
       </div>
@@ -690,12 +1001,8 @@ export function ShowroomCanvas() {
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h4 className="text-xs font-semibold tracking-wider text-cyan-100 uppercase stripe-body">
-                영토 방명록
-              </h4>
-              <p className="mt-1 text-[10px] text-slate-400 stripe-body">
-                지구 표면을 점령하고 메시지를 남깁니다
-              </p>
+              <h4 className="text-xs font-semibold tracking-wider text-cyan-100 uppercase stripe-body">영토 방명록</h4>
+              <p className="mt-1 text-[10px] text-slate-400 stripe-body">지구 표면을 점령하고 메시지를 남깁니다</p>
             </div>
             {claimDraft && (
               <span className="rounded-full bg-cyan-300/15 px-2 py-1 font-mono text-[10px] text-cyan-200 border border-cyan-300/20">
@@ -745,7 +1052,9 @@ export function ShowroomCanvas() {
                 <article key={note.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-2.5">
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span className="truncate text-[11px] font-medium text-white">{note.name}</span>
-                    <span className="font-mono text-[10px] text-cyan-200">{note.gx},{note.gy}</span>
+                    <span className="font-mono text-[10px] text-cyan-200">
+                      {note.gx},{note.gy}
+                    </span>
                   </div>
                   <p className="line-clamp-2 text-[11px] leading-relaxed text-slate-300">{note.message}</p>
                 </article>
@@ -761,11 +1070,9 @@ export function ShowroomCanvas() {
           📡 실시간 홀로그램 점령 현황
         </h4>
         <div className="h-px bg-white/10 my-2" />
-        
+
         {/* 알림 메시지 */}
-        <p className="text-[10px] text-stripe-indigo font-light truncate stripe-body animate-pulse">
-          {lastOccupant}
-        </p>
+        <p className="text-[10px] text-stripe-indigo font-light truncate stripe-body animate-pulse">{lastOccupant}</p>
 
         {/* 내 고유 점령 컬러 상시 노출 */}
         <div className="mt-3 flex items-center justify-between p-2 rounded-lg bg-slate-900/50 border border-white/5">
@@ -796,24 +1103,24 @@ export function ShowroomCanvas() {
           </div>
           {colorStats.slice(0, 3).map(([color, count], idx) => {
             const isMe = color === '#06b6d4'
-            const botItem = virtualBots.find(b => b.color === color)
-            const palItem = colorPalette.find(c => c.hex === color)
-            const label = isMe 
-              ? '나 (방문자) 👤' 
-              : botItem 
-                ? `봇 • ${botItem.name.split(' ')[0]}` 
-                : palItem 
-                  ? `봇 • ${palItem.label}` 
+            const botItem = virtualBots.find((b) => b.color === color)
+            const palItem = colorPalette.find((c) => c.hex === color)
+            const label = isMe
+              ? '나 (방문자) 👤'
+              : botItem
+                ? `봇 • ${botItem.name.split(' ')[0]}`
+                : palItem
+                  ? `봇 • ${palItem.label}`
                   : '봇 • 기타'
             return (
               <div key={color} className="flex items-center justify-between text-xs font-light stripe-body">
                 <div className="flex items-center gap-1.5">
-                  <span 
-                    className="w-2.5 h-2.5 rounded-full" 
-                    style={{ 
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{
                       backgroundColor: color,
-                      boxShadow: isMe ? `0 0 6px ${color}` : 'none'
-                    }} 
+                      boxShadow: isMe ? `0 0 6px ${color}` : 'none',
+                    }}
                   />
                   <span className={`text-[11px] ${isMe ? 'text-cyan-400 font-normal' : 'text-slate-300'}`}>
                     {idx + 1}위 • {label}

@@ -1,9 +1,5 @@
 import { list, put } from '@vercel/blob'
 
-export const config = {
-  runtime: 'edge',
-}
-
 interface TerritoryNote {
   id: string
   gx: number
@@ -18,14 +14,23 @@ const NOTES_PATH = 'portfolio/territory-notes.json'
 const MAX_NOTES = 100
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i
 
-function jsonResponse(body: unknown, init?: ResponseInit) {
-  return Response.json(body, {
-    ...init,
-    headers: {
-      'cache-control': 'no-store',
-      ...init?.headers,
-    },
-  })
+interface ApiRequest {
+  method?: string
+  body?: unknown
+  on?: (event: string, listener: (...args: unknown[]) => void) => ApiRequest
+}
+
+interface ApiResponse {
+  status: (statusCode: number) => ApiResponse
+  setHeader: (name: string, value: string) => void
+  end: (body?: string) => void
+}
+
+function sendJson(response: ApiResponse, body: unknown, statusCode = 200) {
+  response.status(statusCode)
+  response.setHeader('cache-control', 'no-store')
+  response.setHeader('content-type', 'application/json; charset=utf-8')
+  response.end(JSON.stringify(body))
 }
 
 function normalizeString(value: unknown, fallback: string, maxLength: number) {
@@ -79,21 +84,61 @@ async function writeNotes(notes: TerritoryNote[]) {
   })
 }
 
-export default async function handler(request: Request) {
+async function readPayload(request: ApiRequest): Promise<Record<string, unknown> | null> {
+  if (request.body && typeof request.body === 'object') {
+    return request.body as Record<string, unknown>
+  }
+
+  if (typeof request.body === 'string') {
+    return JSON.parse(request.body) as Record<string, unknown>
+  }
+
+  if (!request.on) {
+    return null
+  }
+
+  const chunks: string[] = []
+
+  await new Promise<void>((resolve, reject) => {
+    request.on?.('data', (chunk) => {
+      if (typeof chunk === 'string') {
+        chunks.push(chunk)
+      } else if (chunk instanceof Uint8Array) {
+        chunks.push(new TextDecoder().decode(chunk))
+      }
+    })
+    request.on?.('end', () => resolve())
+    request.on?.('error', (error) => reject(error))
+  })
+
+  const rawBody = chunks.join('').trim()
+  return rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : null
+}
+
+export default async function handler(request: ApiRequest, response: ApiResponse) {
   if (request.method === 'GET') {
     const notes = await readNotes()
-    return jsonResponse({ notes })
+    sendJson(response, { notes })
+    return
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, { status: 405 })
+    response.setHeader('allow', 'GET, POST')
+    sendJson(response, { error: 'Method not allowed' }, 405)
+    return
   }
 
-  let payload: Record<string, unknown>
+  let payload: Record<string, unknown> | null
   try {
-    payload = await request.json()
+    payload = await readPayload(request)
   } catch {
-    return jsonResponse({ error: 'Invalid JSON body' }, { status: 400 })
+    sendJson(response, { error: 'Invalid JSON body' }, 400)
+    return
+  }
+
+  if (!payload) {
+    sendJson(response, { error: 'Invalid JSON body' }, 400)
+    return
   }
 
   const gx = normalizeCoordinate(payload.gx, 0, 359)
@@ -101,10 +146,12 @@ export default async function handler(request: Request) {
   const message = normalizeString(payload.message, '', 90)
 
   if (gx === null || gy === null) {
-    return jsonResponse({ error: 'Invalid territory coordinate' }, { status: 400 })
+    sendJson(response, { error: 'Invalid territory coordinate' }, 400)
+    return
   }
   if (!message) {
-    return jsonResponse({ error: 'Message is required' }, { status: 400 })
+    sendJson(response, { error: 'Message is required' }, 400)
+    return
   }
 
   const note: TerritoryNote = {
@@ -120,5 +167,5 @@ export default async function handler(request: Request) {
 
   await writeNotes(notes)
 
-  return jsonResponse({ note, notes })
+  sendJson(response, { note, notes })
 }
