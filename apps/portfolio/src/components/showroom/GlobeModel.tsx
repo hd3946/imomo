@@ -57,19 +57,77 @@ function isUserTerritory(occupant: string): boolean {
   return occupant.includes('(나)')
 }
 
-function drawTerritoryPatch(ctx: CanvasRenderingContext2D, gx: number, gy: number, color: string, isMine: boolean) {
-  const size = isMine ? 5 : 3
-  const half = Math.floor(size / 2)
-  const x = Math.max(0, Math.min(ctx.canvas.width - size, gx - half))
-  const y = Math.max(0, Math.min(ctx.canvas.height - size, gy - half))
-
-  if (isMine) {
-    ctx.fillStyle = 'rgba(255,255,255,0.92)'
-    ctx.fillRect(x - 1, y - 1, size + 2, size + 2)
+function colorWithAlpha(color: string, alpha: number) {
+  const hex = color.replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(hex)) {
+    return `rgba(6,182,212,${alpha})`
   }
 
-  ctx.fillStyle = color
-  ctx.fillRect(x, y, size, size)
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+function getTerritoryBlockHeight(gx: number, gy: number, column: number, maxHeight: number) {
+  const variance = (gx * 31 + gy * 17 + column * 13) % Math.max(2, maxHeight - 2)
+  return Math.max(3, maxHeight - variance)
+}
+
+function drawTerritoryPatch(
+  ctx: CanvasRenderingContext2D,
+  gx: number,
+  gy: number,
+  color: string,
+  isMine: boolean,
+  hasNote: boolean,
+) {
+  const width = hasNote ? 8 : isMine ? 7 : 6
+  const maxHeight = hasNote ? 9 : isMine ? 8 : 6
+  const x = Math.max(0, Math.min(ctx.canvas.width - width - 2, gx - Math.floor(width / 2)))
+  const baseY = Math.max(maxHeight + 2, Math.min(ctx.canvas.height - 2, gy + Math.floor(maxHeight / 2)))
+  const columns = hasNote ? 4 : 3
+
+  ctx.save()
+  ctx.shadowColor = color
+  ctx.shadowBlur = hasNote ? 8 : isMine ? 6 : 4
+  ctx.fillStyle = colorWithAlpha(color, hasNote ? 0.34 : 0.24)
+  ctx.fillRect(x - 2, baseY - maxHeight - 2, width + 4, maxHeight + 4)
+  ctx.shadowBlur = 0
+
+  ctx.fillStyle = 'rgba(2,6,23,0.68)'
+  ctx.fillRect(x - 1, baseY, width + 2, 1)
+
+  for (let column = 0; column < columns; column += 1) {
+    const colX = x + column * 2
+    const blockHeight = getTerritoryBlockHeight(gx, gy, column, maxHeight)
+    const colWidth = hasNote && column === columns - 1 ? 2 : 1
+
+    ctx.fillStyle = colorWithAlpha(color, 0.86)
+    ctx.fillRect(colX, baseY - blockHeight, colWidth, blockHeight)
+    ctx.fillStyle = 'rgba(255,255,255,0.62)'
+    ctx.fillRect(colX, baseY - blockHeight, colWidth, 1)
+
+    if (blockHeight > 4) {
+      ctx.fillStyle = colorWithAlpha('#ffffff', 0.28)
+      ctx.fillRect(colX, baseY - blockHeight + 2, colWidth, 1)
+    }
+  }
+
+  ctx.strokeStyle = hasNote ? 'rgba(255,255,255,0.88)' : isMine ? 'rgba(255,255,255,0.76)' : colorWithAlpha(color, 0.72)
+  ctx.strokeRect(x - 1, baseY - maxHeight - 1, width + 2, maxHeight + 2)
+
+  if (hasNote) {
+    const antennaX = x + Math.floor(width / 2)
+    const antennaY = baseY - maxHeight - 5
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'
+    ctx.fillRect(antennaX, antennaY + 1, 1, 5)
+    ctx.fillRect(antennaX - 2, antennaY + 1, 5, 1)
+    ctx.fillStyle = colorWithAlpha(color, 0.98)
+    ctx.fillRect(antennaX, antennaY, 1, 1)
+  }
+
+  ctx.restore()
 }
 
 // ─── Ping 레이더 웨이브 링 ────────────────────────────────────────────────────
@@ -346,7 +404,7 @@ export function GlobeModel({
       const gx = parseInt(gxStr || '0', 10)
       const gy = parseInt(gyStr || '0', 10)
 
-      drawTerritoryPatch(ctx, gx, gy, val.color, isUserTerritory(val.occupant))
+      drawTerritoryPatch(ctx, gx, gy, val.color, isUserTerritory(val.occupant), Boolean(claimNotes[key]))
 
       // 직전 프레임에 없던 신규 픽셀 점령 감지 시 폭발 이펙트 뿜기
       if (!prevPixelsRef.current[key]) {
@@ -367,7 +425,7 @@ export function GlobeModel({
 
     canvasTexture.needsUpdate = true
     prevPixelsRef.current = { ...pixels }
-  }, [pixels, canvas, canvasTexture])
+  }, [pixels, claimNotes, canvas, canvasTexture])
 
   // 키보드 이벤트 탐색 리스너
   useEffect(() => {
@@ -642,9 +700,11 @@ export function GlobeModel({
           const isFocused = isSelected || isHovered || territory.isLatest
           const markerSize = isFocused ? 0.07 : 0.046
           const ringOuter = isFocused ? 0.145 : 0.108
-          const labelText = note
-            ? note.message
-            : `${territory.occupant} 점령 영토 ${territory.gx},${territory.gy}`
+          const surfaceQuaternion = new THREE.Quaternion().setFromUnitVectors(
+            new THREE.Vector3(0, 1, 0),
+            territory.direction,
+          )
+          const labelText = note ? note.message : `${territory.occupant} 점령 영토 ${territory.gx},${territory.gy}`
 
           return (
             <group key={`claim-${territory.key}`} position={territory.position}>
@@ -669,7 +729,7 @@ export function GlobeModel({
                 />
               </mesh>
               <mesh
-                quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), territory.direction)}
+                quaternion={surfaceQuaternion}
                 onPointerOver={(e) => {
                   e.stopPropagation()
                   showClaimPointer(territory.key)
@@ -705,6 +765,60 @@ export function GlobeModel({
                 <sphereGeometry args={[0.14, 12, 12]} />
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
               </mesh>
+              {note && (
+                <group
+                  quaternion={surfaceQuaternion}
+                  onPointerOver={(e) => {
+                    e.stopPropagation()
+                    showClaimPointer(territory.key)
+                  }}
+                  onPointerOut={(e) => {
+                    e.stopPropagation()
+                    clearClaimPointer()
+                  }}
+                  onClick={(e) => handleClaimMarkerClick(territory.key, e)}
+                >
+                  <mesh position={[0, 0.075, 0]}>
+                    <cylinderGeometry args={[0.018, 0.03, 0.15, 6]} />
+                    <meshStandardMaterial
+                      color={territory.color}
+                      emissive={territory.color}
+                      emissiveIntensity={isFocused ? 2.4 : 1.15}
+                      metalness={0.45}
+                      roughness={0.18}
+                      transparent
+                      opacity={0.94}
+                    />
+                  </mesh>
+                  <mesh position={[0, 0.165, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[0.042, 0.064, 24]} />
+                    <meshBasicMaterial
+                      color="#ffffff"
+                      transparent
+                      opacity={isFocused ? 0.92 : 0.58}
+                      side={THREE.DoubleSide}
+                      blending={THREE.AdditiveBlending}
+                      depthWrite={false}
+                    />
+                  </mesh>
+                  <mesh position={[0, 0.185, 0]}>
+                    <sphereGeometry args={[0.03, 12, 12]} />
+                    <meshBasicMaterial
+                      color="#ffffff"
+                      transparent
+                      opacity={0.96}
+                      blending={THREE.AdditiveBlending}
+                      depthWrite={false}
+                    />
+                  </mesh>
+                  <pointLight
+                    position={[0, 0.19, 0]}
+                    color={territory.color}
+                    intensity={isFocused ? 0.45 : 0.22}
+                    distance={0.48}
+                  />
+                </group>
+              )}
               {isFocused && (
                 <Html position={territory.direction.clone().multiplyScalar(0.24)} center distanceFactor={5.6}>
                   <div className="max-w-[260px] rounded-xl border border-cyan-200/45 bg-slate-950/92 px-3 py-2 text-white shadow-[0_0_20px_rgba(34,211,238,0.42)] backdrop-blur-md select-none pointer-events-none">
