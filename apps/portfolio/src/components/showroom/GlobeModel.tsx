@@ -32,8 +32,20 @@ interface ClaimedTerritory {
   occupant: string
   position: THREE.Vector3
   direction: THREE.Vector3
+  isMine: boolean
+  hasNote: boolean
   isLatest: boolean
 }
+
+interface TerritoryCityClusterProps {
+  territory: ClaimedTerritory
+  isFocused?: boolean
+  onPointerOver?: (event: any) => void
+  onPointerOut?: (event: any) => void
+  onClick?: (event: any) => void
+}
+
+const CITY_BUILDING_LIMIT = 56
 
 const countries: CountryPin[] = [
   { name: '한국 (Seoul)', label: '🇰🇷 대한민국', lat: 37.5665, lon: 126.978, color: '#06b6d4' },
@@ -83,15 +95,15 @@ function drawTerritoryPatch(
   hasNote: boolean,
 ) {
   const width = hasNote ? 8 : isMine ? 7 : 6
-  const maxHeight = hasNote ? 9 : isMine ? 8 : 6
+  const maxHeight = hasNote ? 7 : isMine ? 6 : 4
   const x = Math.max(0, Math.min(ctx.canvas.width - width - 2, gx - Math.floor(width / 2)))
   const baseY = Math.max(maxHeight + 2, Math.min(ctx.canvas.height - 2, gy + Math.floor(maxHeight / 2)))
   const columns = hasNote ? 4 : 3
 
   ctx.save()
   ctx.shadowColor = color
-  ctx.shadowBlur = hasNote ? 8 : isMine ? 6 : 4
-  ctx.fillStyle = colorWithAlpha(color, hasNote ? 0.34 : 0.24)
+  ctx.shadowBlur = hasNote ? 8 : isMine ? 6 : 3
+  ctx.fillStyle = colorWithAlpha(color, hasNote ? 0.28 : 0.18)
   ctx.fillRect(x - 2, baseY - maxHeight - 2, width + 4, maxHeight + 4)
   ctx.shadowBlur = 0
 
@@ -103,13 +115,13 @@ function drawTerritoryPatch(
     const blockHeight = getTerritoryBlockHeight(gx, gy, column, maxHeight)
     const colWidth = hasNote && column === columns - 1 ? 2 : 1
 
-    ctx.fillStyle = colorWithAlpha(color, 0.86)
+    ctx.fillStyle = colorWithAlpha(color, 0.62)
     ctx.fillRect(colX, baseY - blockHeight, colWidth, blockHeight)
     ctx.fillStyle = 'rgba(255,255,255,0.62)'
     ctx.fillRect(colX, baseY - blockHeight, colWidth, 1)
 
     if (blockHeight > 4) {
-      ctx.fillStyle = colorWithAlpha('#ffffff', 0.28)
+      ctx.fillStyle = colorWithAlpha('#ffffff', 0.2)
       ctx.fillRect(colX, baseY - blockHeight + 2, colWidth, 1)
     }
   }
@@ -128,6 +140,111 @@ function drawTerritoryPatch(
   }
 
   ctx.restore()
+}
+
+function getTerritoryHeight(gx: number, gy: number, column: number, baseHeight: number) {
+  const variance = ((gx * 29 + gy * 37 + column * 19) % 7) / 100
+  return baseHeight + variance
+}
+
+function TerritoryCityCluster({
+  territory,
+  isFocused = false,
+  onPointerOver,
+  onPointerOut,
+  onClick,
+}: TerritoryCityClusterProps) {
+  const surfaceQuaternion = useMemo(
+    () => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), territory.direction),
+    [territory.direction],
+  )
+  const scale = territory.hasNote ? 1.18 : territory.isMine ? 1.05 : 0.82
+  const baseHeight = territory.hasNote ? 0.14 : territory.isMine ? 0.12 : 0.085
+  const glow = isFocused || territory.hasNote ? 1.85 : territory.isMine ? 1.35 : 0.78
+  const opacity = territory.hasNote || territory.isMine ? 0.96 : 0.82
+  const buildings = [
+    {
+      x: -0.034,
+      z: -0.018,
+      width: 0.028,
+      depth: 0.028,
+      height: getTerritoryHeight(territory.gx, territory.gy, 0, baseHeight),
+    },
+    {
+      x: 0,
+      z: 0.012,
+      width: 0.032,
+      depth: 0.03,
+      height: getTerritoryHeight(territory.gx, territory.gy, 1, baseHeight + 0.035),
+    },
+    {
+      x: 0.034,
+      z: -0.012,
+      width: 0.024,
+      depth: 0.026,
+      height: getTerritoryHeight(territory.gx, territory.gy, 2, baseHeight - 0.005),
+    },
+  ]
+
+  return (
+    <group
+      position={territory.position}
+      quaternion={surfaceQuaternion}
+      scale={scale}
+      onPointerOver={onPointerOver}
+      onPointerOut={onPointerOut}
+      onClick={onClick}
+    >
+      <mesh position={[0, 0.004, 0]}>
+        <boxGeometry args={[0.12, 0.008, 0.096]} />
+        <meshStandardMaterial
+          color={territory.color}
+          emissive={territory.color}
+          emissiveIntensity={0.58}
+          transparent
+          opacity={0.36}
+          metalness={0.35}
+          roughness={0.3}
+        />
+      </mesh>
+      {buildings.map((building, index) => (
+        <group key={`${territory.key}-tower-${index}`} position={[building.x, 0, building.z]}>
+          <mesh position={[0, building.height / 2, 0]}>
+            <boxGeometry args={[building.width, building.height, building.depth]} />
+            <meshStandardMaterial
+              color={territory.color}
+              emissive={territory.color}
+              emissiveIntensity={glow}
+              transparent
+              opacity={opacity}
+              metalness={0.62}
+              roughness={0.16}
+            />
+          </mesh>
+          <mesh position={[0, building.height + 0.004, 0]}>
+            <boxGeometry args={[building.width * 0.82, 0.008, building.depth * 0.82]} />
+            <meshBasicMaterial
+              color="#ffffff"
+              transparent
+              opacity={isFocused || territory.hasNote ? 0.82 : 0.42}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, Math.max(...buildings.map((building) => building.height)) + 0.018, 0]}>
+        <sphereGeometry args={[territory.hasNote ? 0.019 : 0.012, 10, 10]} />
+        <meshBasicMaterial
+          color={territory.hasNote ? '#ffffff' : territory.color}
+          transparent
+          opacity={territory.hasNote || isFocused ? 0.9 : 0.46}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
+  )
 }
 
 // ─── Ping 레이더 웨이브 링 ────────────────────────────────────────────────────
@@ -371,12 +488,14 @@ export function GlobeModel({
       .slice(-20)
 
     return userClaims.map(([key, val], index) => {
+      const isMine = isUserTerritory(val.occupant)
+      const hasNote = Boolean(claimNotes[key])
       const [gxStr, gyStr] = key.split('_')
       const gx = parseInt(gxStr || '0', 10)
       const gy = parseInt(gyStr || '0', 10)
       const lon = gx - 180 + 0.5
       const lat = 90 - gy - 0.5
-      const position = convertLatLngToVector3(lat, lon, globeRadius + 0.07)
+      const position = convertLatLngToVector3(lat, lon, globeRadius + 0.03)
       const direction = position.clone().normalize()
 
       return {
@@ -387,7 +506,44 @@ export function GlobeModel({
         occupant: val.occupant,
         position,
         direction,
+        isMine,
+        hasNote,
         isLatest: index === userClaims.length - 1,
+      }
+    })
+  }, [pixels, claimNotes])
+
+  const territoryCityBlocks = useMemo<ClaimedTerritory[]>(() => {
+    const recentEntries = Object.entries(pixels).slice(-CITY_BUILDING_LIMIT)
+    const importantEntries = Object.entries(pixels)
+      .filter(([key, val]) => isUserTerritory(val.occupant) || claimNotes[key])
+      .slice(-20)
+    const merged = new Map<string, { color: string; occupant: string }>(recentEntries)
+    importantEntries.forEach(([key, val]) => merged.set(key, val))
+    const entries = Array.from(merged.entries()).slice(-(CITY_BUILDING_LIMIT + 20))
+
+    return entries.map(([key, val], index) => {
+      const isMine = isUserTerritory(val.occupant)
+      const hasNote = Boolean(claimNotes[key])
+      const [gxStr, gyStr] = key.split('_')
+      const gx = parseInt(gxStr || '0', 10)
+      const gy = parseInt(gyStr || '0', 10)
+      const lon = gx - 180 + 0.5
+      const lat = 90 - gy - 0.5
+      const position = convertLatLngToVector3(lat, lon, globeRadius + 0.018)
+      const direction = position.clone().normalize()
+
+      return {
+        key,
+        gx,
+        gy,
+        color: val.color,
+        occupant: val.occupant,
+        position,
+        direction,
+        isMine,
+        hasNote,
+        isLatest: index === entries.length - 1,
       }
     })
   }, [pixels, claimNotes])
@@ -691,6 +847,44 @@ export function GlobeModel({
             </mesh>
           </group>
         )}
+
+        {/* ─── 지표면에서 솟아오르는 최근 점령 도시 블록 ─── */}
+        {territoryCityBlocks.map((territory) => {
+          const isInteractive = territory.hasNote || territory.isMine
+          const isFocused =
+            selectedClaimKey === territory.key || hoveredClaimKey === territory.key || territory.isLatest
+
+          return (
+            <TerritoryCityCluster
+              key={`city-${territory.key}`}
+              territory={territory}
+              isFocused={isFocused}
+              onPointerOver={
+                isInteractive
+                  ? (e) => {
+                      e.stopPropagation()
+                      showClaimPointer(territory.key)
+                    }
+                  : undefined
+              }
+              onPointerOut={
+                isInteractive
+                  ? (e) => {
+                      e.stopPropagation()
+                      clearClaimPointer()
+                    }
+                  : undefined
+              }
+              onClick={
+                isInteractive
+                  ? (e) => {
+                      handleClaimMarkerClick(territory.key, e)
+                    }
+                  : undefined
+              }
+            />
+          )
+        })}
 
         {/* ─── 점령 영토 기반 방명록 표식 ─── */}
         {claimedTerritories.map((territory) => {
