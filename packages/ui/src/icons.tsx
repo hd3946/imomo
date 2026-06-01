@@ -1,6 +1,7 @@
 import {
   FaAws,
   FaBrain,
+  FaCube,
   FaDocker,
   FaEnvelope,
   FaExternalLinkAlt,
@@ -75,3 +76,4 @@ export const UserIcon = FaUserAlt;
 export const CodeIcon = FaLaptopCode;
 export const BrainIcon = FaBrain;
 export const MailIcon = FaEnvelope;
+export const CubeIcon = FaCube;
