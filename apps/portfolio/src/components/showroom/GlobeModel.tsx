@@ -45,7 +45,7 @@ interface TerritoryCityClusterProps {
   onClick?: (event: any) => void
 }
 
-const CITY_BUILDING_LIMIT = 56
+const CITY_BUILDING_LIMIT = 96
 
 const countries: CountryPin[] = [
   { name: '한국 (Seoul)', label: '🇰🇷 대한민국', lat: 37.5665, lon: 126.978, color: '#06b6d4' },
@@ -67,79 +67,6 @@ function convertLatLngToVector3(lat: number, lon: number, radius: number): THREE
 
 function isUserTerritory(occupant: string): boolean {
   return occupant.includes('(나)')
-}
-
-function colorWithAlpha(color: string, alpha: number) {
-  const hex = color.replace('#', '')
-  if (!/^[0-9a-f]{6}$/i.test(hex)) {
-    return `rgba(6,182,212,${alpha})`
-  }
-
-  const r = parseInt(hex.slice(0, 2), 16)
-  const g = parseInt(hex.slice(2, 4), 16)
-  const b = parseInt(hex.slice(4, 6), 16)
-  return `rgba(${r},${g},${b},${alpha})`
-}
-
-function getTerritoryBlockHeight(gx: number, gy: number, column: number, maxHeight: number) {
-  const variance = (gx * 31 + gy * 17 + column * 13) % Math.max(2, maxHeight - 2)
-  return Math.max(3, maxHeight - variance)
-}
-
-function drawTerritoryPatch(
-  ctx: CanvasRenderingContext2D,
-  gx: number,
-  gy: number,
-  color: string,
-  isMine: boolean,
-  hasNote: boolean,
-) {
-  const width = hasNote ? 8 : isMine ? 7 : 6
-  const maxHeight = hasNote ? 7 : isMine ? 6 : 4
-  const x = Math.max(0, Math.min(ctx.canvas.width - width - 2, gx - Math.floor(width / 2)))
-  const baseY = Math.max(maxHeight + 2, Math.min(ctx.canvas.height - 2, gy + Math.floor(maxHeight / 2)))
-  const columns = hasNote ? 4 : 3
-
-  ctx.save()
-  ctx.shadowColor = color
-  ctx.shadowBlur = hasNote ? 8 : isMine ? 6 : 3
-  ctx.fillStyle = colorWithAlpha(color, hasNote ? 0.28 : 0.18)
-  ctx.fillRect(x - 2, baseY - maxHeight - 2, width + 4, maxHeight + 4)
-  ctx.shadowBlur = 0
-
-  ctx.fillStyle = 'rgba(2,6,23,0.68)'
-  ctx.fillRect(x - 1, baseY, width + 2, 1)
-
-  for (let column = 0; column < columns; column += 1) {
-    const colX = x + column * 2
-    const blockHeight = getTerritoryBlockHeight(gx, gy, column, maxHeight)
-    const colWidth = hasNote && column === columns - 1 ? 2 : 1
-
-    ctx.fillStyle = colorWithAlpha(color, 0.62)
-    ctx.fillRect(colX, baseY - blockHeight, colWidth, blockHeight)
-    ctx.fillStyle = 'rgba(255,255,255,0.62)'
-    ctx.fillRect(colX, baseY - blockHeight, colWidth, 1)
-
-    if (blockHeight > 4) {
-      ctx.fillStyle = colorWithAlpha('#ffffff', 0.2)
-      ctx.fillRect(colX, baseY - blockHeight + 2, colWidth, 1)
-    }
-  }
-
-  ctx.strokeStyle = hasNote ? 'rgba(255,255,255,0.88)' : isMine ? 'rgba(255,255,255,0.76)' : colorWithAlpha(color, 0.72)
-  ctx.strokeRect(x - 1, baseY - maxHeight - 1, width + 2, maxHeight + 2)
-
-  if (hasNote) {
-    const antennaX = x + Math.floor(width / 2)
-    const antennaY = baseY - maxHeight - 5
-    ctx.fillStyle = 'rgba(255,255,255,0.9)'
-    ctx.fillRect(antennaX, antennaY + 1, 1, 5)
-    ctx.fillRect(antennaX - 2, antennaY + 1, 5, 1)
-    ctx.fillStyle = colorWithAlpha(color, 0.98)
-    ctx.fillRect(antennaX, antennaY, 1, 1)
-  }
-
-  ctx.restore()
 }
 
 function getTerritoryHeight(gx: number, gy: number, column: number, baseHeight: number) {
@@ -460,26 +387,6 @@ export function GlobeModel({
   // 아크 속도 랜덤화
   const arcSpeeds = useMemo(() => countries.slice(1).map(() => 0.18 + Math.random() * 0.38), [])
 
-  // ─── 실시간 픽셀 그리기 캔버스 및 텍스처 ────────────────────────────────────
-  const canvasSize = 360
-  const canvas = useMemo(() => {
-    const el = document.createElement('canvas')
-    el.width = canvasSize
-    el.height = canvasSize / 2 // 2:1 바둑판 비율
-    const ctx = el.getContext('2d')
-    if (ctx) {
-      ctx.fillStyle = 'rgba(0,0,0,0)'
-      ctx.fillRect(0, 0, el.width, el.height)
-    }
-    return el
-  }, [])
-
-  const canvasTexture = useMemo(() => {
-    const tex = new THREE.CanvasTexture(canvas)
-    tex.colorSpace = THREE.SRGBColorSpace
-    return tex
-  }, [canvas])
-
   const prevPixelsRef = useRef<Record<string, { color: string; occupant: string }>>({})
 
   const claimedTerritories = useMemo<ClaimedTerritory[]>(() => {
@@ -548,19 +455,12 @@ export function GlobeModel({
     })
   }, [pixels, claimNotes])
 
-  // pixels 데이터 변경 감지 시 캔버스 다시 그리고 신규 픽셀 지점에 불꽃놀이 격발
+  // pixels 데이터 변경 감지 시 신규 점령 지점에 불꽃놀이 격발
   useEffect(() => {
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
     Object.entries(pixels).forEach(([key, val]) => {
       const [gxStr, gyStr] = key.split('_')
       const gx = parseInt(gxStr || '0', 10)
       const gy = parseInt(gyStr || '0', 10)
-
-      drawTerritoryPatch(ctx, gx, gy, val.color, isUserTerritory(val.occupant), Boolean(claimNotes[key]))
 
       // 직전 프레임에 없던 신규 픽셀 점령 감지 시 폭발 이펙트 뿜기
       if (!prevPixelsRef.current[key]) {
@@ -579,9 +479,8 @@ export function GlobeModel({
       }
     })
 
-    canvasTexture.needsUpdate = true
     prevPixelsRef.current = { ...pixels }
-  }, [pixels, claimNotes, canvas, canvasTexture])
+  }, [pixels])
 
   // 키보드 이벤트 탐색 리스너
   useEffect(() => {
@@ -795,18 +694,6 @@ export function GlobeModel({
             emissiveIntensity={2.8}
             transparent
             opacity={0.98}
-          />
-        </mesh>
-
-        {/* ─── 실시간 픽셀 점령 맵 오버레이 구체 ─── */}
-        <mesh>
-          <sphereGeometry args={[globeRadius + 0.005, 64, 64]} />
-          <meshBasicMaterial
-            map={canvasTexture}
-            transparent
-            opacity={0.85}
-            depthWrite={false}
-            blending={THREE.NormalBlending}
           />
         </mesh>
 
